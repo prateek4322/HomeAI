@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "name": "Milk",
+    "brand": "Amul",
+    "qty": "500 ml",
+    "place": "Kitchen",
+    "days": 2,
+    "category": "Dairy",
+    "emoji": "🥛"
+  },
+  {
+    "id": 2,
+    "name": "Bread",
+    "brand": "Modern",
+    "qty": "1 pack",
+    "place": "Kitchen",
+    "days": 3,
+    "category": "Food",
+    "emoji": "🍞"
+  },
+  {
+    "id": 3,
+    "name": "Yogurt",
+    "brand": "Mother Dairy",
+    "qty": "200 g",
+    "place": "Fridge",
+    "days": 5,
+    "category": "Dairy",
+    "emoji": "🥣"
+  },
+  {
+    "id": 4,
+    "name": "Tomatoes",
+    "brand": "Fresh",
+    "qty": "1 kg",
+    "place": "Vegetable Rack",
+    "days": 6,
+    "category": "Fruits & Vegetables",
+    "emoji": "🍅"
+  },
+  {
+    "id": 5,
+    "name": "Eggs",
+    "brand": "Farm Fresh",
+    "qty": "12 pcs",
+    "place": "Fridge",
+    "days": 6,
+    "category": "Food",
+    "emoji": "🥚"
+  }
+]
