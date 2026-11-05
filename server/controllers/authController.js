@@ -394,3 +394,38 @@ const { password } = req.body;
     });
   }
 };
+// DELETE USER ACCOUNT
+export const deleteAccount = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    if (!Number.isInteger(userId)) {
+      return res.status(401).json({
+        message: "Authentication required.",
+      });
+    }
+
+    await prisma.user.delete({
+      where: {
+        id: userId,
+      },
+    });
+
+    return res.status(200).json({
+      message: "Your account and associated data have been permanently deleted.",
+    });
+
+  } catch (error) {
+    console.error("DELETE ACCOUNT ERROR:", error);
+
+    if (error.code === "P2025") {
+      return res.status(404).json({
+        message: "Account not found.",
+      });
+    }
+
+    return res.status(500).json({
+      message: "Unable to delete account. Please try again.",
+    });
+  }
+};

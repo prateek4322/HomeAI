@@ -16,10 +16,10 @@ import AuthPage from './components/AuthPage.jsx';
 
 import {
   Home, Package, ScanLine, CalendarDays, Bot, Layers,
-  ChartNoAxesCombined, Bell, Settings, Leaf, Search, Sun,
+  Bell, Settings, Leaf, Search, Sun,
   Moon, ChevronDown, ChevronLeft, ChevronRight, ArrowRight,
   Plus, Camera, Clock3, AlertCircle, Grid2X2, MapPin,
-  Zap, Utensils, Crown, CheckCircle2, Menu, X, Send,
+  Zap, CheckCircle2, Menu, X, Send,
   Sparkles, MoreVertical,
 } from 'lucide-react';
 
@@ -93,8 +93,6 @@ const navItems = [
   [CalendarDays, 'Expiry Calendar'],
   [Bot, 'AI Assistant'],
   [Layers, 'Categories'],
-  [ChartNoAxesCombined, 'Analytics'],
-  [Utensils, 'Recipes & Tips'],
   [Bell, 'Reminders'],
   [Settings, 'Settings'],
 ];
@@ -159,6 +157,8 @@ const getProductDaysLeft = (product) => {
 function Dashboard() {
   const { user, logout } = useAuth();
   const [active, setActive] = useState('Dashboard');
+  const [pageView, setPageView] = useState('dashboard');
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
   const [expiryFilter, setExpiryFilter] = useState('');
   const [products, setProducts] = useState([]);
   const [apiStatus, setApiStatus] = useState('connecting');
@@ -201,6 +201,13 @@ function Dashboard() {
       : 'unsupported'
   );
   const [notificationMessage, setNotificationMessage] = useState('');
+  const [reminderEnabled, setReminderEnabled] = useState(() => {
+    try {
+      return localStorage.getItem('homeai-reminders-enabled') !== 'false';
+    } catch {
+      return true;
+    }
+  });
 
   const [newProduct, setNewProduct] = useState({
     name: '',
@@ -412,7 +419,7 @@ function Dashboard() {
 
   // Send one consolidated reminder per user per day while HomeAI is open.
   useEffect(() => {
-    if (notificationPermission !== 'granted' || products.length === 0) return;
+    if (!reminderEnabled || notificationPermission !== 'granted' || products.length === 0) return;
     if (typeof Notification === 'undefined') return;
 
     const { expiredItems, dueTodayItems, expiringSoonItems } = expiryOverview;
@@ -441,7 +448,7 @@ function Dashboard() {
       console.error('Expiry notification error:', error);
       setNotificationMessage('Could not send the expiry notification.');
     }
-  }, [notificationPermission, products, expiryOverview, user?.id, user?.email]);
+  }, [reminderEnabled, notificationPermission, products, expiryOverview, user?.id, user?.email]);
 
   // Build the inventory chart from this user's actual products.
   const categoryColors = [
@@ -735,14 +742,49 @@ function Dashboard() {
   const deleteProduct = async (id) => {
     try {
       await removeProduct(id);
-
-      setProducts((prev) =>
-        prev.filter((product) => product.id !== id)
-      );
+      setProducts((prev) => prev.filter((product) => product.id !== id));
       refreshDashboardSummary();
     } catch (error) {
       console.error('Delete product error:', error);
       alert('Product could not be deleted.');
+    }
+  };
+
+  const openWorkspacePage = (page) => {
+    setActive(page);
+    setPageView(page === 'Reminders' ? 'reminders' : page === 'Settings' ? 'settings' : 'dashboard');
+    setMobileNav(false);
+    setExpiryFilter('');
+    window.setTimeout(() => {
+      const main = document.querySelector('.main');
+      if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 40);
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm('Permanently delete your HomeAI account and all saved inventory? This action cannot be undone.');
+    if (!confirmed) return;
+    setDeleteAccountLoading(true);
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const token = localStorage.getItem('homeai_token');
+      const response = await fetch(`${apiBase}/auth/account`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token || ''}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || (response.status === 404
+          ? 'Delete-account API is not implemented on the backend yet.'
+          : 'Account could not be deleted.'));
+      }
+      alert('Your HomeAI account has been deleted.');
+      await logout();
+    } catch (error) {
+      console.error('Delete account error:', error);
+      alert(error.message || 'Account could not be deleted.');
+    } finally {
+      setDeleteAccountLoading(false);
     }
   };
 
@@ -759,6 +801,61 @@ function Dashboard() {
         .add-form { max-height: none; overflow: visible; }
         .modal-backdrop .modal { width: min(100%, 620px); }
         .main, .modal { scrollbar-width: thin; }
+        .workspace-page { width: 100%; max-width: 1240px; margin: 0 auto; animation: workspacePageIn .28s ease both; }
+        @keyframes workspacePageIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .workspace-page-heading { margin-bottom: 24px; }
+        .back-page-button { display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(9,231,161,.22); color: #a9c9bc; background: rgba(9,231,161,.055); border-radius: 10px; padding: 9px 13px; margin-bottom: 24px; cursor: pointer; font-size: 12px; font-weight: 700; }
+        .back-page-button:hover { color: #09e7a1; border-color: rgba(9,231,161,.5); }
+        .workspace-page-heading h1 { margin: 7px 0 5px; font-size: clamp(27px,4vw,38px); letter-spacing: -.04em; color: #effff8; }
+        .workspace-page-heading p { margin: 0; color: #91aa9f; font-size: 13px; }
+        .reminder-summary-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 13px; margin-bottom: 18px; }
+        .reminder-summary-card { min-height: 116px; padding: 18px; border: 1px solid rgba(255,255,255,.075); border-radius: 17px; background: linear-gradient(145deg,rgba(12,43,35,.96),rgba(7,27,24,.98)); box-shadow: 0 12px 30px rgba(0,0,0,.14); }
+        .reminder-summary-card span,.reminder-summary-card small { display:block; color:#9bb8aa; font-size:12px; }
+        .reminder-summary-card strong { display:block; font-size:30px; line-height:1.35; margin:5px 0; color:#effff8; }
+        .reminder-summary-card.expired { border-color:rgba(255,103,103,.25); } .reminder-summary-card.expired strong { color:#ff8585; }
+        .reminder-summary-card.today { border-color:rgba(255,204,36,.25); } .reminder-summary-card.today strong { color:#ffcc24; }
+        .reminder-summary-card.soon { border-color:rgba(9,231,161,.25); } .reminder-summary-card.soon strong { color:#09e7a1; }
+        .reminders-control-card { display:flex; justify-content:space-between; align-items:center; gap:18px; flex-wrap:wrap; padding:19px 21px; border:1px solid rgba(9,231,161,.2); border-radius:17px; background:radial-gradient(circle at 100% 0%,rgba(9,231,161,.11),transparent 38%),linear-gradient(130deg,#0b3027,#081e1a); }
+        .reminders-control-card h3,.reminders-list-heading h2 { margin:5px 0; color:#effff8; }
+        .reminders-control-card p { margin:0; color:#91aa9f; font-size:12px; }
+        .reminders-control-actions { display:flex; align-items:center; gap:15px; flex-wrap:wrap; }
+        .premium-toggle { display:flex; align-items:center; gap:8px; color:#c5ddd1; font-size:12px; font-weight:700; cursor:pointer; }
+        .premium-toggle input { accent-color:#09e7a1; width:16px; height:16px; }
+        .reminders-list-heading { display:flex; justify-content:space-between; align-items:end; gap:12px; margin:28px 2px 14px; }
+        .reminders-list-heading > span { color:#9bb8aa; font-size:12px; }
+        .premium-reminder-list { display:grid; gap:12px; }
+        .premium-reminder-card { display:flex; align-items:center; gap:16px; padding:15px; border:1px solid rgba(255,255,255,.08); border-radius:17px; background:linear-gradient(110deg,rgba(12,42,35,.96),rgba(7,27,24,.98)); box-shadow:0 10px 28px rgba(0,0,0,.13); transition:transform .2s,border-color .2s; }
+        .premium-reminder-card:hover { transform:translateY(-2px); border-color:rgba(9,231,161,.3); }
+        .premium-reminder-card.is-expired { border-left:3px solid #ff7777; } .premium-reminder-card.is-today { border-left:3px solid #ffcc24; } .premium-reminder-card.is-soon { border-left:3px solid #09e7a1; }
+        .reminder-product-visual { flex:0 0 76px; width:76px; height:76px; display:grid; place-items:center; overflow:hidden; border-radius:14px; background:rgba(255,255,255,.055); border:1px solid rgba(255,255,255,.07); }
+        .reminder-product-visual img { width:100%; height:100%; object-fit:cover; } .reminder-product-visual span { font-size:34px; }
+        .reminder-product-info { flex:1; min-width:180px; }
+        .reminder-product-title-row { display:flex; align-items:center; flex-wrap:wrap; gap:9px; }
+        .reminder-product-title-row h3 { margin:0; color:#effff8; font-size:15px; }
+        .reminder-status-pill { border-radius:99px; padding:5px 9px; font-size:10px; font-weight:800; color:#d7fff0; background:rgba(9,231,161,.12); }
+        .is-expired .reminder-status-pill { color:#ffaaaa; background:rgba(255,103,103,.13); } .is-today .reminder-status-pill { color:#ffdf78; background:rgba(255,204,36,.13); }
+        .reminder-product-info > p { margin:5px 0 9px; color:#9bb8aa; font-size:12px; } .reminder-product-info > p span { color:#526d61; padding:0 4px; }
+        .reminder-product-details { display:flex; flex-wrap:wrap; gap:7px 15px; color:#a9c4b8; font-size:11px; } .reminder-product-details span { display:inline-flex; align-items:center; gap:5px; }
+        .reminder-edit-button { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; border:1px solid rgba(9,231,161,.22); border-radius:10px; padding:9px 11px; background:rgba(9,231,161,.07); color:#09e7a1; font-size:11px; font-weight:800; cursor:pointer; }
+        .reminders-empty-state { text-align:center; padding:48px 18px; border:1px dashed rgba(9,231,161,.22); border-radius:18px; background:rgba(9,231,161,.025); }
+        .reminders-empty-state > div { color:#09e7a1; } .reminders-empty-state h3 { color:#effff8; margin:12px 0 5px; } .reminders-empty-state p { color:#91aa9f; font-size:12px; margin:0 0 16px; }
+        .settings-layout-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; }
+        .settings-profile-card,.settings-detail-card,.settings-danger-card { padding:21px; border:1px solid rgba(255,255,255,.08); border-radius:17px; background:linear-gradient(145deg,rgba(12,43,35,.96),rgba(7,27,24,.98)); }
+        .settings-profile-card { display:flex; align-items:center; gap:15px; flex-wrap:wrap; }
+        .settings-profile-avatar { width:58px; height:58px; display:grid; place-items:center; border-radius:18px; background:linear-gradient(135deg,#09e7a1,#b6ef54); color:#05251d; font-size:25px; font-weight:900; }
+        .settings-profile-card h2 { margin:4px 0; color:#effff8; font-size:20px; } .settings-profile-card p { margin:0; color:#9bb8aa; font-size:12px; overflow-wrap:anywhere; }
+        .account-active-badge { margin-left:auto; color:#09e7a1; background:rgba(9,231,161,.1); border-radius:99px; padding:6px 9px; font-size:10px; font-weight:800; }
+        .settings-detail-card h3,.settings-danger-card h3 { margin:7px 0; color:#effff8; }
+        .settings-detail-row { display:flex; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid rgba(255,255,255,.07); font-size:12px; }
+        .settings-detail-row:last-of-type { margin-bottom:12px; } .settings-detail-row span { color:#91aa9f; } .settings-detail-row strong { color:#eafff5; text-align:right; overflow-wrap:anywhere; }
+        .settings-notification-card > p,.settings-danger-card p { color:#91aa9f; font-size:12px; line-height:1.6; }
+        .settings-reminder-toggle { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 0; margin:8px 0; border-bottom:1px solid rgba(255,255,255,.07); }
+        .settings-reminder-toggle strong,.settings-reminder-toggle small { display:block; } .settings-reminder-toggle strong { color:#eafff5; font-size:12px; } .settings-reminder-toggle small { color:#91aa9f; font-size:10px; margin-top:4px; } .settings-reminder-toggle input { width:17px; height:17px; accent-color:#09e7a1; }
+        .settings-danger-card { grid-column:1/-1; display:flex; justify-content:space-between; align-items:center; gap:20px; flex-wrap:wrap; border-color:rgba(255,103,103,.2); background:linear-gradient(120deg,rgba(49,20,22,.52),rgba(9,28,24,.98)); }
+        .settings-danger-card p { max-width:650px; margin-bottom:0; } .settings-danger-actions { display:flex; gap:10px; flex-wrap:wrap; }
+        .delete-account-button { border:1px solid rgba(255,103,103,.35); border-radius:10px; padding:10px 14px; color:#ff9999; background:rgba(255,103,103,.1); font-size:12px; font-weight:800; cursor:pointer; } .delete-account-button:hover { background:rgba(255,103,103,.18); } .delete-account-button:disabled { opacity:.55; cursor:wait; }
+        @media (max-width:850px) { .reminder-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .settings-layout-grid { grid-template-columns:1fr; } }
+        @media (max-width:560px) { .premium-reminder-card { align-items:flex-start; flex-wrap:wrap; } .reminder-product-visual { flex-basis:62px; width:62px; height:62px; } .reminder-edit-button { margin-left:78px; } .reminders-control-actions { width:100%; justify-content:space-between; } .settings-danger-actions { width:100%; } }
         /* Dashboard navigation, cards and responsive layout */
         #inventory-section, #expiry-monitor-section, #expiry-calendar-section,
         #ai-assistant-section, #analytics-section, #recipes-section, #settings-section {
@@ -1170,28 +1267,31 @@ function Dashboard() {
                 active === label ? 'selected' : ''
               }`}
               onClick={() => {
-                setActive(label);
-                setMobileNav(false);
-                setExpiryFilter('');
                 if (label === 'Scan Product') {
+                  setActive(label);
+                  setMobileNav(false);
+                  setPageView('dashboard');
                   setModal('scan');
                   return;
                 }
+                if (label === 'Reminders' || label === 'Settings' || label === 'Dashboard') {
+                  openWorkspacePage(label);
+                  return;
+                }
+                setActive(label);
+                setPageView('dashboard');
+                setMobileNav(false);
+                setExpiryFilter('');
                 const targets = {
-                  Dashboard: 'dashboard-top',
                   Inventory: 'inventory-section',
                   'Expiry Calendar': 'expiry-calendar-section',
                   'AI Assistant': 'ai-assistant-section',
                   Categories: 'analytics-section',
-                  Analytics: 'analytics-section',
-                  'Recipes & Tips': 'recipes-section',
-                  Reminders: 'expiry-monitor-section',
-                  Settings: 'dashboard-top',
                 };
                 window.setTimeout(() => {
                   document.getElementById(targets[label] || 'dashboard-top')
                     ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 80);
+                }, 100);
               }}
             >
               <Icon size={19} />
@@ -1200,49 +1300,6 @@ function Dashboard() {
           ))}
         </nav>
 
-        <div className="green-promo">
-          <div className="promo-art">
-            🌱 <span>🌎</span> 🍃
-          </div>
-
-          <b>
-            A Smarter Home
-            <br />
-            A Greener Tomorrow
-          </b>
-
-          <ul>
-            <li>Track your products</li>
-            <li>Reduce food waste</li>
-            <li>Save money</li>
-            <li>Build a sustainable life</li>
-          </ul>
-
-          <button onClick={() => setActive('Analytics')}>
-            Learn More <ArrowRight size={14} />
-          </button>
-        </div>
-
-        <div className="storage" id="settings-section">
-          <div className="storage-title">Storage Usage</div>
-          <div className="storage-bar">
-            <i />
-          </div>
-
-          <div className="storage-meta">
-            <span>{products.length} items</span>
-            <span>
-              {Math.min(
-                100,
-                Math.round((products.length / 50) * 100)
-              )}% used
-            </span>
-          </div>
-
-          <button onClick={() => setModal('upgrade')}>
-            <Crown size={14} /> Upgrade Plan
-          </button>
-        </div>
       </aside>
 
       <main className="main">
@@ -1452,13 +1509,7 @@ function Dashboard() {
           <div className="top-actions">
             <button
               className="icon-btn notification"
-              onClick={async () => {
-                if ('Notification' in window && Notification.permission === 'default') {
-                  const permission = await Notification.requestPermission();
-                  setNotificationPermission(permission);
-                }
-                setActive('Reminders');
-              }}
+              onClick={() => openWorkspacePage('Reminders')}
               title="Notifications and reminders"
             >
               <Bell />
@@ -1484,7 +1535,67 @@ function Dashboard() {
           </div>
         </header>
 
-        <div className="content">
+        {pageView === 'reminders' && (
+          <section className="workspace-page reminders-page" aria-label="Reminders" style={{ padding: '26px clamp(16px, 3vw, 34px) 42px' }}>
+            <div className="workspace-page-heading">
+              <button type="button" className="back-page-button" onClick={() => openWorkspacePage('Dashboard')}><ArrowRight size={16} style={{ transform: 'rotate(180deg)' }} /> Back to Dashboard</button>
+              <span className="eyebrow">HOMEAI SMART ALERTS</span>
+              <h1>Expiry Reminders</h1>
+              <p>Live expiry tracking for the products saved in your inventory.</p>
+            </div>
+            <div className="reminder-summary-grid">
+              <div className="reminder-summary-card expired"><span>Expired</span><strong>{expiryOverview.expiredItems.length}</strong><small>Past expiry date</small></div>
+              <div className="reminder-summary-card today"><span>Expires today</span><strong>{expiryOverview.dueTodayItems.length}</strong><small>Needs attention today</small></div>
+              <div className="reminder-summary-card soon"><span>Next 7 days</span><strong>{expiryOverview.expiringSoonItems.length}</strong><small>Upcoming expiry</small></div>
+              <div className="reminder-summary-card total"><span>Total alerts</span><strong>{expiryOverview.alerts.length}</strong><small>Across your inventory</small></div>
+            </div>
+            <div className="reminders-control-card">
+              <div><span className="eyebrow">NOTIFICATION CONTROL</span><h3>Daily expiry reminders</h3><p>Allow HomeAI to show a daily browser notification while the app is open.</p></div>
+              <div className="reminders-control-actions">
+                <label className="premium-toggle"><input type="checkbox" checked={reminderEnabled} onChange={(event) => { const enabled = event.target.checked; setReminderEnabled(enabled); localStorage.setItem('homeai-reminders-enabled', String(enabled)); setNotificationMessage(enabled ? 'Daily reminders are enabled.' : 'Daily reminders are paused.'); }} /><span></span>{reminderEnabled ? 'On' : 'Paused'}</label>
+                <button type="button" className="primary small" onClick={enableExpiryNotifications}><Bell size={15} /> {notificationPermission === 'granted' ? 'Permission enabled' : 'Enable notifications'}</button>
+              </div>
+            </div>
+            {notificationMessage && <p className="muted" role="status" style={{ margin: '12px 2px' }}>{notificationMessage}</p>}
+            <div className="reminders-list-heading"><div><span className="eyebrow">PERSONALIZED INVENTORY ALERTS</span><h2>Products needing attention</h2></div><span>{expiryOverview.alerts.length} alert(s)</span></div>
+            {expiryOverview.alerts.length ? (
+              <div className="premium-reminder-list">
+                {expiryOverview.alerts.map((product) => {
+                  const days = product.calculatedDaysLeft;
+                  const isExpired = days < 0;
+                  const isToday = days === 0;
+                  const status = isExpired ? `${Math.abs(days)} day(s) overdue` : isToday ? 'Expires today' : `Expires in ${days} day(s)`;
+                  const image = product.imageUrl || product.image || product.productImage || '';
+                  return <article className={`premium-reminder-card ${isExpired ? 'is-expired' : isToday ? 'is-today' : 'is-soon'}`} key={product.id}>
+                    <div className="reminder-product-visual">{image ? <img src={image} alt={product.name || 'Product'} onError={(event) => { event.currentTarget.style.display = 'none'; }} /> : <span>{product.emoji || '📦'}</span>}</div>
+                    <div className="reminder-product-info"><div className="reminder-product-title-row"><h3>{product.name || 'Unnamed product'}</h3><span className="reminder-status-pill">{status}</span></div>
+                      <p>{product.brand || 'Brand not set'} <span>·</span> {product.category || 'Other'}</p>
+                      <div className="reminder-product-details"><span><Package size={13} /> {product.qty || product.quantity || 'Quantity not set'}</span><span><MapPin size={13} /> {product.place || product.location || 'Location not set'}</span><span><CalendarDays size={13} /> {formatExpiryDate(product.expiryDate)}</span></div>
+                    </div>
+                    <button type="button" className="reminder-edit-button" onClick={() => openEditProduct(product)}>View / Edit <ArrowRight size={14} /></button>
+                  </article>;
+                })}
+              </div>
+            ) : <div className="reminders-empty-state"><div><CheckCircle2 size={34} /></div><h3>All clear for now</h3><p>Add expiry dates to your inventory and HomeAI will show personalized reminders here.</p><button type="button" className="primary small" onClick={() => { openWorkspacePage('Dashboard'); window.setTimeout(() => setModal('add'), 120); }}><Plus size={15} /> Add product</button></div>}
+          </section>
+        )}
+
+        {pageView === 'settings' && (
+          <section className="workspace-page settings-page" aria-label="Settings" style={{ padding: '26px clamp(16px, 3vw, 34px) 42px' }}>
+            <div className="workspace-page-heading">
+              <button type="button" className="back-page-button" onClick={() => openWorkspacePage('Dashboard')}><ArrowRight size={16} style={{ transform: 'rotate(180deg)' }} /> Back to Dashboard</button>
+              <span className="eyebrow">HOMEAI ACCOUNT</span><h1>Settings</h1><p>Manage your profile, preferences and account security.</p>
+            </div>
+            <div className="settings-layout-grid">
+              <article className="settings-profile-card"><div className="settings-profile-avatar">{(user?.name || user?.email || 'U').trim().charAt(0).toUpperCase()}</div><div><span className="eyebrow">YOUR PROFILE</span><h2>{user?.name || 'HomeAI User'}</h2><p>{user?.email || 'Email not available'}</p></div><span className="account-active-badge">Active account</span></article>
+              <article className="settings-detail-card"><span className="eyebrow">ACCOUNT DETAILS</span><div className="settings-detail-row"><span>Full name</span><strong>{user?.name || 'Not available'}</strong></div><div className="settings-detail-row"><span>Email address</span><strong>{user?.email || 'Not available'}</strong></div><div className="settings-detail-row"><span>Account ID</span><strong>{user?.id || 'Not provided'}</strong></div><div className="settings-detail-row"><span>Inventory items</span><strong>{products.length}</strong></div></article>
+              <article className="settings-detail-card settings-notification-card"><span className="eyebrow">PREFERENCES</span><h3>Notifications</h3><p>Choose whether HomeAI can send expiry alerts in this browser.</p><label className="settings-reminder-toggle"><span><strong>Daily expiry reminders</strong><small>Daily summary for expired and upcoming products</small></span><input type="checkbox" checked={reminderEnabled} onChange={(event) => { const enabled = event.target.checked; setReminderEnabled(enabled); localStorage.setItem('homeai-reminders-enabled', String(enabled)); }} /></label><div className="settings-detail-row"><span>Browser permission</span><strong className={`permission-${notificationPermission}`}>{notificationPermission}</strong></div><button type="button" className="primary small" onClick={enableExpiryNotifications}><Bell size={15} /> Manage browser permission</button></article>
+              <article className="settings-danger-card"><div><span className="eyebrow">ACCOUNT ACTIONS</span><h3>Sign out or delete account</h3><p>Logging out keeps your data safe. Deleting your account is permanent and removes your account and associated inventory.</p></div><div className="settings-danger-actions"><button type="button" className="logout-button" onClick={logout}>Logout</button><button type="button" className="delete-account-button" onClick={handleDeleteAccount} disabled={deleteAccountLoading}>{deleteAccountLoading ? 'Deleting...' : 'Delete Account'}</button></div></article>
+            </div>
+          </section>
+        )}
+
+        <div className="content" style={{ display: pageView === 'dashboard' ? 'block' : 'none' }}>
           <section className="welcome-row">
             <div className="welcome-banner">
               <div className="sun-glow">☀</div>
@@ -2112,21 +2223,139 @@ function Dashboard() {
 
                   <button
                     className="quick-calendar"
-                    onClick={() => setActive('Expiry Calendar')}
+                    onClick={() => {
+                      setActive('Expiry Calendar');
+                      document.getElementById('expiry-calendar-section')
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
                   >
                     <CalendarDays /> View Calendar
                   </button>
 
                   <button
                     className="quick-recipes"
-                    onClick={() => setActive('Recipes & Tips')}
+                    onClick={() => {
+                      setActive('Inventory');
+                      document.getElementById('inventory-section')
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
                   >
-                    <Utensils /> View Recipes
+                    <Package /> Inventory
                   </button>
                 </div>
               </section>
             </aside>
           </div>
+
+          <section className="panel expiry-alert-panel" id="expiry-monitor-section" style={{ display: 'none', marginTop: 24, padding: 22, scrollMarginTop: 22 }}>
+            <div className="panel-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <span className="eyebrow">SMART NOTIFICATIONS</span>
+                <h3 style={{ marginTop: 6 }}>Reminders & Expiry Alerts</h3>
+                <p className="muted" style={{ marginTop: 5, fontSize: 12 }}>Products that need your attention, based on saved expiry dates.</p>
+              </div>
+              <button type="button" className="primary small" onClick={enableExpiryNotifications}>
+                <Bell size={15} /> {notificationPermission === 'granted' ? 'Notifications enabled' : 'Enable notifications'}
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(145px,1fr))', gap: 12, margin: '18px 0' }}>
+              <div className="waste-stat"><span>Expired</span><b style={{ color: '#ff7777' }}>{expiryOverview.expiredItems.length}</b><small>Past expiry date</small></div>
+              <div className="waste-stat"><span>Expires today</span><b style={{ color: '#ffcc24' }}>{expiryOverview.dueTodayItems.length}</b><small>Use or check today</small></div>
+              <div className="waste-stat"><span>Next 7 days</span><b style={{ color: '#09e7a1' }}>{expiryOverview.expiringSoonItems.length}</b><small>Coming up soon</small></div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+              <strong>Upcoming reminders</strong>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 9, fontSize: 12, color: 'var(--muted, #9bb8aa)' }}>
+                <input
+                  type="checkbox"
+                  checked={reminderEnabled}
+                  onChange={(event) => {
+                    const enabled = event.target.checked;
+                    setReminderEnabled(enabled);
+                    localStorage.setItem('homeai-reminders-enabled', String(enabled));
+                    setNotificationMessage(enabled ? 'Expiry reminders are enabled.' : 'Expiry reminders are paused.');
+                  }}
+                />
+                Daily browser reminders
+              </label>
+            </div>
+
+            {notificationMessage && <p role="status" className="muted" style={{ fontSize: 12, marginBottom: 12 }}>{notificationMessage}</p>}
+            {expiryOverview.alerts.length ? (
+              <div style={{ display: 'grid', gap: 9 }}>
+                {expiryOverview.alerts.map((product) => {
+                  const days = getProductDaysLeft(product);
+                  const status = days < 0 ? `${Math.abs(days)} day(s) overdue` : days === 0 ? 'Expires today' : `Expires in ${days} day(s)`;
+                  return (
+                    <div className="expiry-alert-item" key={product.id}>
+                      <div>
+                        <span className="expiry-alert-product-name">{product.emoji || '📦'} {product.name || 'Unnamed product'}</span>
+                        <span className="expiry-alert-product-meta">{product.brand || 'No brand'} · {product.category || 'Other'} · {product.place || product.location || 'Location not set'}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className="expiry-alert-status" style={{ color: days < 0 ? '#ff8585' : days === 0 ? '#ffcc24' : '#09e7a1', background: days < 0 ? 'rgba(255,91,91,.13)' : days === 0 ? 'rgba(255,204,36,.13)' : 'rgba(9,231,161,.12)' }}>{status}</span>
+                        <button type="button" className="icon-btn" title="Edit product" onClick={() => openEditProduct(product)}><MoreVertical size={16} /></button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="inventory-empty-state" style={{ minHeight: 120 }}>
+                <CheckCircle2 size={28} />
+                <strong>No expiry alerts right now</strong>
+                <span>Products expiring today or within the next 7 days will appear here.</span>
+              </div>
+            )}
+          </section>
+
+          <section className="panel" id="settings-section" style={{ display: 'none', marginTop: 20, padding: 22, scrollMarginTop: 22, border: '1px solid rgba(9,231,161,.22)' }}>
+            <div className="panel-head">
+              <span className="eyebrow">ACCOUNT PREFERENCES</span>
+              <h3 style={{ marginTop: 6 }}>Settings</h3>
+              <p className="muted" style={{ marginTop: 5, fontSize: 12 }}>Manage your HomeAI profile and notification preferences.</p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14, marginTop: 18 }}>
+              <div className="expiry-alert-item" style={{ display: 'block' }}>
+                <span className="eyebrow">PROFILE</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
+                  <div className="avatar" style={{ width: 48, height: 48, display: 'grid', placeItems: 'center', borderRadius: '50%', background: 'rgba(9,231,161,.15)', color: '#09e7a1', fontWeight: 800, fontSize: 20 }}>
+                    {(user?.name || user?.email || 'U').trim().charAt(0).toUpperCase()}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <strong style={{ display: 'block', color: 'var(--text, #effff8)' }}>{user?.name || 'HomeAI User'}</strong>
+                    <span className="expiry-alert-product-meta">{user?.email || 'Email not available'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="expiry-alert-item" style={{ display: 'block' }}>
+                <span className="eyebrow">NOTIFICATIONS</span>
+                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 14, color: 'var(--text, #effff8)', fontSize: 13 }}>
+                  <span>Daily expiry reminders</span>
+                  <input type="checkbox" checked={reminderEnabled} onChange={(event) => {
+                    const enabled = event.target.checked;
+                    setReminderEnabled(enabled);
+                    localStorage.setItem('homeai-reminders-enabled', String(enabled));
+                    setNotificationMessage(enabled ? 'Expiry reminders are enabled.' : 'Expiry reminders are paused.');
+                  }} />
+                </label>
+                <p className="expiry-alert-product-meta" style={{ marginTop: 9 }}>Browser permission: {notificationPermission}</p>
+                <button type="button" className="primary small" style={{ marginTop: 12 }} onClick={enableExpiryNotifications}>Manage browser permission</button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 18, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,.08)' }}>
+              <div>
+                <strong>Sign out of HomeAI</strong>
+                <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>You can sign in again anytime with your account.</p>
+              </div>
+              <button type="button" className="logout-button" onClick={logout}>Logout</button>
+            </div>
+          </section>
         </div>
       </main>
 

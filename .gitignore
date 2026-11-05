@@ -3,3 +3,4 @@ dist/
 .env
 server/.env
 server/.env.example
+.neon

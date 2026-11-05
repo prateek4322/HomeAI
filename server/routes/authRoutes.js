@@ -6,7 +6,10 @@ import {
   googleLogin,
   forgotPassword,
   resetPassword,
+  deleteAccount,
 } from "../controllers/authController.js";
+
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -16,5 +19,8 @@ router.post("/google", googleLogin);
 
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
+
+// Protected account deletion
+router.delete("/account", protect, deleteAccount);
 
 export default router;

@@ -107,6 +107,8 @@ export const sendPasswordResetEmail = async (email, resetURL) => {
     );
 
     const result = await response.json();
+    console.log("GMAIL API STATUS:", response.status);
+console.log("GMAIL API RESPONSE:", JSON.stringify(result));
 
     if (!response.ok) {
       console.error("Gmail API Error:", result);

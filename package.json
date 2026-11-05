@@ -12,13 +12,16 @@
     "server": "npm --prefix server start"
   },
   "dependencies": {
+    "@neon/config": "^1.10.1",
+    "@neon/env": "^1.6.9",
     "@react-oauth/google": "^0.13.5",
     "@zxing/browser": "^0.2.1",
     "@zxing/library": "^0.23.0",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "recharts": "^2.15.0"
+    "recharts": "^2.15.0",
+    "resend": "^6.37.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
