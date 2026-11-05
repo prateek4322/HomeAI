@@ -19,7 +19,7 @@ import {
   Bell, Settings, Leaf, Search, Sun,
   Moon, ChevronDown, ChevronLeft, ChevronRight, ArrowRight,
   Plus, Camera, Clock3, AlertCircle, Grid2X2, MapPin,
-  Zap, CheckCircle2, Menu, X, Send,
+  Zap, CheckCircle2, Menu, X, Send,Trash2,AlertTriangle,
   Sparkles, MoreVertical,
 } from 'lucide-react';
 
@@ -159,6 +159,7 @@ function Dashboard() {
   const [active, setActive] = useState('Dashboard');
   const [pageView, setPageView] = useState('dashboard');
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [expiryFilter, setExpiryFilter] = useState('');
   const [products, setProducts] = useState([]);
   const [apiStatus, setApiStatus] = useState('connecting');
@@ -762,8 +763,6 @@ function Dashboard() {
   };
 
   const handleDeleteAccount = async () => {
-    const confirmed = window.confirm('Permanently delete your HomeAI account and all saved inventory? This action cannot be undone.');
-    if (!confirmed) return;
     setDeleteAccountLoading(true);
     try {
       const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -778,7 +777,7 @@ function Dashboard() {
           ? 'Delete-account API is not implemented on the backend yet.'
           : 'Account could not be deleted.'));
       }
-      alert('Your HomeAI account has been deleted.');
+      setShowDeleteAccountModal(false);
       await logout();
     } catch (error) {
       console.error('Delete account error:', error);
@@ -1590,7 +1589,7 @@ function Dashboard() {
               <article className="settings-profile-card"><div className="settings-profile-avatar">{(user?.name || user?.email || 'U').trim().charAt(0).toUpperCase()}</div><div><span className="eyebrow">YOUR PROFILE</span><h2>{user?.name || 'HomeAI User'}</h2><p>{user?.email || 'Email not available'}</p></div><span className="account-active-badge">Active account</span></article>
               <article className="settings-detail-card"><span className="eyebrow">ACCOUNT DETAILS</span><div className="settings-detail-row"><span>Full name</span><strong>{user?.name || 'Not available'}</strong></div><div className="settings-detail-row"><span>Email address</span><strong>{user?.email || 'Not available'}</strong></div><div className="settings-detail-row"><span>Account ID</span><strong>{user?.id || 'Not provided'}</strong></div><div className="settings-detail-row"><span>Inventory items</span><strong>{products.length}</strong></div></article>
               <article className="settings-detail-card settings-notification-card"><span className="eyebrow">PREFERENCES</span><h3>Notifications</h3><p>Choose whether HomeAI can send expiry alerts in this browser.</p><label className="settings-reminder-toggle"><span><strong>Daily expiry reminders</strong><small>Daily summary for expired and upcoming products</small></span><input type="checkbox" checked={reminderEnabled} onChange={(event) => { const enabled = event.target.checked; setReminderEnabled(enabled); localStorage.setItem('homeai-reminders-enabled', String(enabled)); }} /></label><div className="settings-detail-row"><span>Browser permission</span><strong className={`permission-${notificationPermission}`}>{notificationPermission}</strong></div><button type="button" className="primary small" onClick={enableExpiryNotifications}><Bell size={15} /> Manage browser permission</button></article>
-              <article className="settings-danger-card"><div><span className="eyebrow">ACCOUNT ACTIONS</span><h3>Sign out or delete account</h3><p>Logging out keeps your data safe. Deleting your account is permanent and removes your account and associated inventory.</p></div><div className="settings-danger-actions"><button type="button" className="logout-button" onClick={logout}>Logout</button><button type="button" className="delete-account-button" onClick={handleDeleteAccount} disabled={deleteAccountLoading}>{deleteAccountLoading ? 'Deleting...' : 'Delete Account'}</button></div></article>
+              <article className="settings-danger-card"><div><span className="eyebrow">ACCOUNT ACTIONS</span><h3>Sign out or delete account</h3><p>Logging out keeps your data safe. Deleting your account is permanent and removes your account and associated inventory.</p></div><div className="settings-danger-actions"><button type="button" className="logout-button" onClick={logout}>Logout</button><button type="button" className="delete-account-button" onClick={() => setShowDeleteAccountModal(true)} disabled={deleteAccountLoading}>{deleteAccountLoading ? 'Deleting...' : 'Delete Account'}</button></div></article>
             </div>
           </section>
         )}
@@ -2358,6 +2357,75 @@ function Dashboard() {
           </section>
         </div>
       </main>
+
+      {showDeleteAccountModal && (
+        <div
+          role="presentation"
+          onClick={() => !deleteAccountLoading && setShowDeleteAccountModal(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 10000, display: 'grid',
+            placeItems: 'center', padding: 20,
+            background: 'rgba(0, 8, 6, .78)', backdropFilter: 'blur(9px)',
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-account-title"
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: 'min(100%, 440px)', padding: 26, borderRadius: 22,
+              border: '1px solid rgba(255,103,103,.3)',
+              background: 'linear-gradient(145deg,#14251f,#091510)',
+              boxShadow: '0 28px 90px rgba(0,0,0,.55)',
+            }}
+          >
+            <div style={{
+              width: 52, height: 52, display: 'grid', placeItems: 'center',
+              borderRadius: 16, color: '#ff8585',
+              background: 'rgba(255,103,103,.12)',
+              border: '1px solid rgba(255,103,103,.22)', marginBottom: 18,
+            }}>
+              <AlertTriangle size={25} />
+            </div>
+            <span className="eyebrow" style={{ color: '#ff8585' }}>PERMANENT ACTION</span>
+            <h2 id="delete-account-title" style={{ color: '#f4fff9', fontSize: 23, margin: '8px 0' }}>
+              Delete your account?
+            </h2>
+            <p style={{ color: '#a8bdb2', fontSize: 13, lineHeight: 1.7, margin: '0 0 16px' }}>
+              This will permanently delete your HomeAI account and all saved inventory.
+              You will not be able to recover this data.
+            </p>
+            <div style={{
+              display: 'flex', gap: 10, padding: 12, borderRadius: 12,
+              background: 'rgba(255,103,103,.07)', color: '#ffb0b0',
+              fontSize: 11, lineHeight: 1.5, marginBottom: 22,
+            }}>
+              <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+              <span>This action cannot be undone.</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="logout-button"
+                disabled={deleteAccountLoading}
+                onClick={() => setShowDeleteAccountModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="delete-account-button"
+                disabled={deleteAccountLoading}
+                onClick={handleDeleteAccount}
+                style={{ minWidth: 132, padding: '11px 15px' }}
+              >
+                {deleteAccountLoading ? 'Deleting...' : 'Yes, delete account'}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {mobileNav && (
         <div
