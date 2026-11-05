@@ -1,146 +1,188 @@
 
-🏠 Home AI
-Your home. Your inventory. One intelligent dashboard.
-A smarter way to organize household products, track expiry dates, and stay ahead of waste.
+Home AI
+Smart Household Inventory Management System
+A full-stack web application for organizing household products, monitoring expiry dates, and managing inventory through a centralized dashboard.
 
 
-￼ ￼ 
-
-
-
-￼ ￼ ￼ ￼ ￼ ￼ ￼
-
-✨ What is Home AI?
-Home AI is a smart household inventory management web application designed to help users keep their everyday products organized. Add products, save their details, monitor expiry dates, and view inventory information from one dashboard.
-The aim is simple: know what you have, where it is, and when it expires.
-🚀 Features
+Project Overview
+Home AI is a full-stack inventory management application designed to help users maintain a structured record of household products. Users can save product information, organize items, track expiry dates, and review inventory summaries from a dashboard.
+The project demonstrates practical implementation of frontend development, REST API integration, backend authentication, relational database management, and ORM-based data operations.
+Live Application: https://home-ai-ecru.vercel.app/
+Key Features
 Feature
 Description
-🔐 User Authentication
-Create an account and securely access your inventory.
-📦 Product Management
-Add, view, and manage household products.
-🏷️ Barcode Details
-Save barcode numbers to identify products.
-⏳ Expiry Tracking
-Track expiry dates and days remaining.
-🚦 Expiry Status
+User Authentication
+User registration and login with protected application access.
+Inventory Management
+Add, view, and manage household product records.
+Product Information
+Maintain product name, brand, quantity, category, and description.
+Expiry Date Tracking
+Store expiry dates and calculate remaining days.
+Storage Organization
+Save the location where each product is stored.
+Barcode Information
+Store barcode identifiers with product records.
+Dashboard Summary
+Display inventory and expiry-related statistics.
+Expiry Status
 Identify expired, expiring-soon, and safe products.
-📊 Smart Dashboard
-View inventory totals and expiry summaries.
-🗂️ Product Information
-Store brand, quantity, category, location, and description.
-Features listed here describe the intended/current project scope. Availability can vary with the deployed build.
-🧰 Tech Stack
-
+Technology Stack
 Frontend
+React — Component-based user interface.
+Vite — Development server and frontend build tooling.
+JavaScript (ES6+) — Application logic.
+CSS — Styling and responsive interface.
 Backend
-Database & ORM
-React + Vite
-Node.js
-PostgreSQL
-JavaScript
-Express.js
-Prisma ORM
-
-🏗️ Application Architecture
+Node.js — JavaScript runtime.
+Express.js — REST API and server-side routing.
+Prisma ORM — Database queries and schema management.
+Database & Deployment
+PostgreSQL — Relational database.
+Vercel — Live frontend deployment.
+System Architecture
 flowchart TD
-    A[User] --> B[React + Vite Frontend]
-    B --> C[Express REST API]
-    C --> D[Authentication Middleware]
-    C --> E[Prisma ORM]
-    E --> F[(PostgreSQL Database)]
-    F --> E
-    E --> C
-    C --> B
-📸 Preview
-Visit the live application:
-
-🌐 Open Home AI — Live Demo
-
-
-Dashboard
-Inventory
-Add your dashboard screenshot here
-Add your inventory screenshot here
-⚙️ Run Locally
+    U[User] --> FE[React + Vite Frontend]
+    FE -->|HTTP Requests / JSON| API[Node.js + Express REST API]
+    API --> AUTH[Authentication Middleware]
+    AUTH --> CTRL[Controllers]
+    CTRL --> ORM[Prisma ORM]
+    ORM --> DB[(PostgreSQL Database)]
+    DB --> ORM
+    ORM --> CTRL
+    CTRL -->|JSON Response| FE
+Application Workflow
+A user creates an account or logs in.
+The frontend sends requests to the Express backend.
+Backend middleware validates access to protected routes.
+Controllers process the requested inventory operation.
+Prisma communicates with PostgreSQL.
+The API returns a response that the React interface displays.
+Project Structure
+Home-AI/
+│
+├── client/                         # React + Vite frontend
+│   ├── public/
+│   ├── src/
+│   │   ├── components/             # Reusable UI components
+│   │   ├── pages/                  # Application pages
+│   │   ├── context/                # Shared application state (if present)
+│   │   ├── services/               # API requests (if present)
+│   │   └── ...
+│   ├── package.json
+│   └── vite.config.js
+│
+├── server/                         # Express backend
+│   ├── config/                     # Database configuration
+│   ├── controllers/                # Request handlers
+│   ├── middleware/                 # Authentication and validation
+│   ├── routes/                     # API route definitions
+│   ├── prisma/                     # Prisma schema and migrations
+│   ├── package.json
+│   └── ...
+│
+└── README.md
+The tree is a representative overview. Keep it aligned with the folders in the current repository.
+Getting Started
+Follow these steps to run the application locally.
+Prerequisites
+Make sure the following are installed:
+Node.js
+npm
+PostgreSQL
+Git
 1. Clone the repository
-git clone <YOUR_GITHUB_REPOSITORY_URL>
+git clone <https://github.com/prateek4322/HomeAI>
 cd Home-AI
 2. Install frontend dependencies
 cd client
 npm install
 3. Install backend dependencies
-Open a second terminal:
+Open a separate terminal:
 cd server
 npm install
 4. Configure environment variables
-Create server/.env:
+Create a .env file inside the server directory:
 PORT=5000
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE_NAME"
-JWT_SECRET="your_strong_secret"
-Create client/.env:
+JWT_SECRET="your_secure_jwt_secret"
+If the frontend uses an API base URL, create client/.env:
 VITE_API_URL=http://localhost:5000/api
-Use your own database credentials and secrets. Never commit .env files.
-5. Set up Prisma
+Replace the example values with your own configuration. Add any additional variables required by your code.
+5. Generate Prisma Client and run migrations
 From the server directory:
 npx prisma generate
 npx prisma migrate dev
-Run migrations according to the existing project schema.
+Use the migration workflow appropriate to your existing database and schema.
 6. Start the backend
-From server:
+From the server directory, run the development script defined in server/package.json. For example:
 npm run dev
 7. Start the frontend
-From client:
+From the client directory:
 npm run dev
-Open the local URL shown in your terminal by Vite.
-📁 Project Structure
-Home-AI/
-│
-├── client/                 # React + Vite frontend
-│   ├── src/
-│   └── package.json
-│
-├── server/                 # Node.js + Express backend
-│   ├── config/
-│   ├── controllers/
-│   ├── middleware/
-│   ├── routes/
-│   ├── prisma/
-│   └── package.json
-│
-└── README.md
-Adjust this tree to match the actual repository structure.
-🗺️ Roadmap
-[x]
-React + Vite frontend foundation
-[x]
-Express backend foundation
-[x]
-PostgreSQL and Prisma integration
-[x]
-Product inventory data model
-[ ]
-Camera-based barcode scanning
-[ ]
-Expiry reminder notifications
-[ ]
-Product image upload
-[ ]
-Advanced search, filters, and analytics
-[ ]
-Progressive Web App (PWA) support
-🔒 Security Notes
-Store secrets in environment variables.
-Validate incoming API data on the server.
-Protect private routes with authentication middleware.
-Restrict inventory access to its owner.
-Keep credentials and private configuration out of Git.
-👨‍💻 Developer
+Open the local development URL displayed by Vite in your terminal.
+Database Design
+The product model stores information used by the inventory workflow. Fields in the current implementation include:
+Field
+Purpose
+id
+Unique product identifier
+name
+Product name
+brand
+Brand name
+quantity
+Available quantity
+location
+Household storage location
+expiryDate
+Product expiry date
+daysLeft
+Remaining days until expiry
+category
+Product category
+emoji
+Product visual identifier
+barcode
+Product barcode value
+description
+Additional product details
+userId
+Associated user
+The Prisma schema in the repository is the definitive source for field types, defaults, relations, and constraints.
+Engineering Highlights
+This project provides hands-on experience with:
+Building reusable interfaces using React components.
+Managing frontend state and connecting UI components to APIs.
+Designing REST API endpoints with Express.js.
+Separating routes, controllers, middleware, and configuration.
+Connecting a Node.js application to PostgreSQL through Prisma ORM.
+Modeling relational data for user-specific inventory.
+Handling environment-based configuration for local and deployed environments.
+Deploying a frontend application using Vercel.
+Security Considerations
+Keep database credentials and secret keys in environment variables.
+Never commit .env files or production secrets.
+Validate request data on the backend.
+Protect private endpoints with authentication middleware.
+Ensure users can access only records associated with their account.
+Configure production CORS and deployment environment variables carefully.
+Future Enhancements
+Camera-based barcode scanning.
+Automated expiry reminders and notifications.
+Product image upload.
+Advanced search, sorting, and category filters.
+Inventory activity history.
+Progressive Web App support.
+Deployment
+The live frontend is deployed on Vercel:
+https://home-ai-ecru.vercel.app/
+For a production deployment, configure the frontend API URL and backend/database environment variables in the relevant hosting platforms. Ensure the deployed backend URL is used by the frontend.
+Author
 Prateek Kumar
-B.Tech — Computer Science & Engineering
-🌐 Live Project: home-ai-ecru.vercel.app
-💻 GitHub: Add your GitHub profile link
+B.Tech, Computer Science & Engineering
+NITRA Technical Campus, Ghaziabad
+Live Project: https://home-ai-ecru.vercel.app/
+GitHub: github.com/prateek4322
 
-🏡 Make your home inventory smarter with Home AI.
-Built with React, Node.js, Express, Prisma & PostgreSQL.
+Home AI — Bringing structure and visibility to everyday household inventory.
