@@ -1,32 +1,52 @@
-import { Resend } from "resend";
+import { OAuth2Client } from "google-auth-library";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const oauth2Client = new OAuth2Client(
+  process.env.GMAIL_CLIENT_ID,
+  process.env.GMAIL_CLIENT_SECRET
+);
 
-// Check Resend configuration
+oauth2Client.setCredentials({
+  refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+});
+
+// Verify Gmail API configuration
 export const verifyEmailConnection = async () => {
-  if (!process.env.RESEND_API_KEY) {
-    console.error("RESEND_API_KEY is missing");
+  try {
+    const requiredVariables = [
+      "GMAIL_CLIENT_ID",
+      "GMAIL_CLIENT_SECRET",
+      "GMAIL_REFRESH_TOKEN",
+      "GMAIL_SENDER_EMAIL",
+    ];
+
+    const missing = requiredVariables.filter(
+      (key) => !process.env[key]
+    );
+
+    if (missing.length) {
+      throw new Error(`Missing environment variables: ${missing.join(", ")}`);
+    }
+
+    await oauth2Client.getAccessToken();
+
+    console.log("Gmail API Connected Successfully");
+    return true;
+  } catch (error) {
+    console.error("Gmail API Connection Failed:", error.message);
     return false;
   }
-
-  console.log("Resend Email API configured successfully");
-  return true;
 };
 
 // Send Password Reset Email
 export const sendPasswordResetEmail = async (email, resetURL) => {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error("RESEND_API_KEY is not configured");
-  }
+  try {
+    const accessToken = await oauth2Client.getAccessToken();
 
-  const { data, error } = await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL || "HomeAI Support <onboarding@resend.dev>",
+    if (!accessToken.token) {
+      throw new Error("Unable to generate Gmail access token");
+    }
 
-    to: [email],
-
-    subject: "Reset Your HomeAI Password",
-
-    html: `
+    const html = `
       <div style="font-family:Arial,sans-serif;max-width:550px;margin:auto;padding:30px;background:#0b1913;color:#fff;border-radius:14px;">
 
         <h1 style="color:#00d6a0;">HomeAI</h1>
@@ -58,15 +78,48 @@ export const sendPasswordResetEmail = async (email, resetURL) => {
         </p>
 
       </div>
-    `,
-  });
+    `;
 
-  if (error) {
-    console.error("Resend Email Error:", error);
-    throw new Error(error.message);
+    const message = [
+      `To: ${email}`,
+      `From: HomeAI Support <${process.env.GMAIL_SENDER_EMAIL}>`,
+      "Subject: Reset Your HomeAI Password",
+      "MIME-Version: 1.0",
+      'Content-Type: text/html; charset="UTF-8"',
+      "",
+      html,
+    ].join("\r\n");
+
+    const rawMessage = Buffer.from(message).toString("base64url");
+
+    const response = await fetch(
+      "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          raw: rawMessage,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      console.error("Gmail API Error:", result);
+      throw new Error(
+        result.error?.message || "Failed to send password reset email"
+      );
+    }
+
+    console.log("Password Reset Email Sent:", result.id);
+
+    return result;
+  } catch (error) {
+    console.error("Gmail Email Error:", error.message);
+    throw error;
   }
-
-  console.log("Password Reset Email Sent:", data.id);
-
-  return data;
 };
