@@ -180,6 +180,25 @@ function Dashboard() {
   const [editForm, setEditForm] = useState(null);
   const [dark] = useState(true);
   const [mobileNav, setMobileNav] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!profileMenuOpen) return undefined;
+    const handleOutsideClick = (event) => {
+      if (!profileMenuRef.current?.contains(event.target)) setProfileMenuOpen(false);
+    };
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') setProfileMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('pointerdown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [profileMenuOpen]);
   const [welcomeWordIndex, setWelcomeWordIndex] = useState(0);
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const welcomeWords = ['Organize', 'Track', 'Save Food', 'Reduce Waste', 'Stay Smart'];
@@ -788,7 +807,7 @@ function Dashboard() {
   };
 
   return (
-    <div className={`app ${dark ? 'dark' : 'light'}`} id="dashboard-top">
+    <div className={`app ${dark ? 'dark' : 'light'} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} id="dashboard-top">
       <style>{`
         html, body, #root { min-height: 100%; height: 100%; overflow: hidden; }
         .app { height: 100dvh; min-height: 0; overflow: hidden; }
@@ -996,6 +1015,50 @@ function Dashboard() {
           color: #09e7a1 !important; background: rgba(9,231,161,.10);
           margin: 0 !important;
         }
+        .search-suggestions {
+          width: 100%; max-width: 460px; box-sizing: border-box;
+          max-height: min(280px, 52vh) !important; overflow-x: hidden !important;
+          overflow-y: auto !important; padding: 7px !important;
+        }
+        .search-suggestions .search-suggestion {
+          display: grid !important; grid-template-columns: minmax(0, 1fr) 28px !important;
+          align-items: center !important; gap: 9px !important;
+          width: 100% !important; height: 44px !important; min-height: 44px !important;
+          max-height: 44px !important; box-sizing: border-box !important;
+          padding: 6px 9px 6px 12px !important; margin: 2px 0 !important;
+          overflow: hidden !important;
+        }
+        .search-suggestions .search-suggestion-line {
+          display: flex !important; align-items: center !important; gap: 8px !important;
+          width: 100% !important; min-width: 0 !important; height: 24px !important;
+          overflow: hidden !important; white-space: nowrap !important;
+        }
+        .search-suggestions .search-suggestion-line > div:first-child {
+          flex: 1 1 0 !important; min-width: 0 !important; max-width: 100% !important;
+          overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important;
+        }
+        .search-suggestions .search-suggestion-line > div:nth-child(2) {
+          flex: 0 1 34% !important; min-width: 0 !important; max-width: 34% !important;
+          overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important;
+        }
+        .search-suggestions .search-suggestion > div:last-child {
+          width: 26px !important; height: 26px !important; min-width: 26px !important;
+          flex: 0 0 26px !important;
+        }
+        @media (min-width: 901px) {
+          .search-suggestions { left: 0 !important; right: auto !important; width: min(460px, 42vw) !important; }
+        }
+        @media (max-width: 900px) {
+          .search-suggestions { left: 0 !important; right: 0 !important; width: 100% !important; max-width: none !important; }
+        }
+        @media (max-width: 640px) {
+          .search-suggestions { top: calc(100% + 8px) !important; padding: 6px !important; border-radius: 13px !important; max-height: min(240px, 42vh) !important; }
+          .search-suggestions .search-suggestion { height: 42px !important; min-height: 42px !important; max-height: 42px !important; padding: 5px 7px 5px 9px !important; gap: 6px !important; }
+          .search-suggestions .search-suggestion-line { gap: 6px !important; }
+          .search-suggestions .search-suggestion-line > div:first-child { font-size: 12px !important; line-height: 18px !important; }
+          .search-suggestions .search-suggestion-line > div:nth-child(2) { font-size: 10px !important; line-height: 16px !important; flex-basis: 31% !important; max-width: 31% !important; }
+          .search-suggestions .search-suggestion > div:last-child { width: 23px !important; height: 23px !important; min-width: 23px !important; flex-basis: 23px !important; font-size: 17px !important; }
+        }
         .search-no-match { padding: 15px 11px; color: #b5c9c0; font-size: 12px; }
         .inventory-no-results {
           padding: 30px 18px; text-align: center; border-radius: 14px;
@@ -1107,15 +1170,37 @@ function Dashboard() {
           .date-widget { min-width: 0; min-height: 145px; }
         }
         @media (max-width: 640px) {
-          .topbar { flex-wrap: wrap; }
-          .search { flex: 1 1 100%; width: 100%; order: 2; }
+          .topbar { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 9px 10px; min-width: 0; }
+          .topbar .mobile-menu { flex: 0 0 38px; width: 38px; height: 38px; }
+          .topbar .collapse { display: none !important; }
+          .topbar .search { order: 0; flex: 1 1 auto; width: auto; min-width: 0; height: 38px; margin: 0; }
+          .topbar .search input { min-width: 0; font-size: 11px; }
+          .topbar .search > svg { width: 15px; min-width: 15px; }
+          .topbar .search > button { width: 34px; min-width: 34px; height: 34px; }
+          .topbar .search kbd, .api-indicator { display: none !important; }
+          .top-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; margin-left: 0; }
+          .top-actions .notification { width: 38px; height: 38px; }
+          .user { display: flex; align-items: center; padding: 0; margin: 0; border: 0; background: transparent; position: relative; }
+          .user > b, .user > .plan, .user > .logout-button, .profile-avatar-trigger > b { display: none !important; }
+          .user { position: relative; }
+        .profile-avatar-trigger { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 1px solid rgba(9,231,161,.35); border-radius: 50%; background: #123b31; color: #eafff5; cursor: pointer; }
+          .profile-avatar-trigger .avatar { width: 30px; height: 30px; margin: 0; }
+          .profile-menu { right: 0; top: calc(100% + 10px); }
           .welcome-banner { min-height: 190px; padding: 20px !important; }
           .welcome-copy h1 { font-size: clamp(23px, 7vw, 32px) !important; }
           .welcome-copy p { font-size: 13px !important; }
           .welcome-note { display: none !important; }
           .date-widget { width: 100%; box-sizing: border-box; }
-          .user .plan, .user .logout-button { display: none; }
         }
+        .user { position: relative; }
+        .profile-avatar-trigger { display: inline-flex; align-items: center; justify-content: flex-start; gap: 10px; padding: 4px 8px 4px 4px; border: 0; background: transparent; color: #eafff5; cursor: pointer; border-radius: 999px; font: inherit; }
+        .profile-avatar-trigger > b { display: inline-block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 750; }
+        .profile-avatar-trigger:hover { background: rgba(9,231,161,.08); }
+        .profile-avatar-trigger:focus-visible { outline: 2px solid #09e7a1; outline-offset: 3px; }
+        .profile-menu { position: absolute; z-index: 10050; top: calc(100% + 12px); right: 0; width: 190px; padding: 7px; border: 1px solid rgba(9,231,161,.28); border-radius: 14px; background: #08251f; box-shadow: 0 18px 42px rgba(0,0,0,.45); }
+        .profile-menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; padding: 9px 11px; border: 0; border-radius: 9px; background: transparent; color: #eafff5; text-align: left; font: inherit; cursor: pointer; }
+        .profile-menu button:hover { background: rgba(9,231,161,.12); }
+        .profile-menu button:last-child { color: #ff8b83; }
         .inventory-main-section {
           margin-top: 18px;
           padding: 22px;
@@ -1143,9 +1228,11 @@ function Dashboard() {
         .inventory-empty-state > svg { color: #09e7a1; }
         .inventory-empty-state strong { color: var(--text, #eafff5); font-size: 16px; }
         .inventory-empty-state span { font-size: 12px; line-height: 1.6; }
-        .inventory-product-grid { align-items: stretch; }
+        .inventory-product-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr)); align-items: stretch; gap: 14px; }
         .products-section .product-grid { align-items: stretch; }
-        .products-section .product-card { min-width: 0; }
+        .products-section .product-card { min-width: 0; width: 100%; box-sizing: border-box; overflow-wrap: anywhere; }
+        .products-section .product-card .product-main { min-width: 0; }
+        .products-section .product-card img { max-width: 100%; }
         @media (max-width: 900px) {
           .dashboard-grid { grid-template-columns: minmax(0, 1fr) !important; }
           .right-column { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 16px; }
@@ -1170,6 +1257,8 @@ function Dashboard() {
           .inventory-header-actions { width: 100%; justify-content: flex-start; }
           .inventory-header-actions button { flex: 1 1 auto; }
           .products-section .product-grid { grid-template-columns: minmax(0, 1fr) !important; }
+          .inventory-product-grid { gap: 10px; }
+          .products-section .product-card { min-width: 0; }
           .section-head { align-items: flex-start; gap: 10px; }
           .topbar { gap: 8px; }
           .search { min-width: 0; }
@@ -1235,6 +1324,24 @@ function Dashboard() {
           .modal-backdrop { padding: 10px 8px; }
           .modal { max-height: calc(100dvh - 20px) !important; }
           .main { -webkit-overflow-scrolling: touch; }
+        }
+        @media (min-width: 641px) {
+          .app.sidebar-collapsed { grid-template-columns: 0px minmax(0, 1fr) !important; }
+          .app.sidebar-collapsed > .sidebar {
+            width: 0 !important; min-width: 0 !important; max-width: 0 !important;
+            padding: 0 !important; margin: 0 !important; border: 0 !important;
+            opacity: 0 !important; overflow: hidden !important; pointer-events: none !important;
+          }
+          .topbar .mobile-menu { display: none !important; }
+          .topbar .collapse { display: grid !important; }
+          .app.sidebar-collapsed .topbar .mobile-menu { display: grid !important; flex: 0 0 40px; }
+          .app.sidebar-collapsed .topbar .collapse { display: none !important; }
+        }
+        .sidebar { transition: width .24s ease, opacity .2s ease; }
+        .profile-menu { transform-origin: top right; animation: profileMenuIn .14s ease-out; }
+        @keyframes profileMenuIn {
+          from { opacity: 0; transform: translateY(-5px) scale(.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
       `}</style>
       <aside className={`sidebar ${mobileNav ? 'show' : ''}`}>
@@ -1305,12 +1412,26 @@ function Dashboard() {
         <header className="topbar">
           <button
             className="mobile-menu icon-btn"
-            onClick={() => setMobileNav(true)}
+            type="button"
+            aria-label="Show sidebar"
+            onClick={() => {
+              if (window.matchMedia('(max-width: 640px)').matches) {
+                setMobileNav((open) => !open);
+              } else {
+                setSidebarCollapsed(false);
+              }
+            }}
           >
             <Menu />
           </button>
 
-          <button className="collapse icon-btn">
+          <button
+            className="collapse icon-btn"
+            type="button"
+            aria-label="Hide sidebar"
+            title="Hide sidebar"
+            onClick={() => setSidebarCollapsed(true)}
+          >
             <ChevronLeft />
           </button>
 
@@ -1352,6 +1473,7 @@ function Dashboard() {
             </button>
             {searchFocused && query.trim() && (
               <div
+                className="search-suggestions"
                 role="listbox"
                 aria-label="Matching products"
                 style={{
@@ -1384,6 +1506,7 @@ function Dashboard() {
 
                     return (
                       <button
+                        className="search-suggestion"
                         type="button"
                         role="option"
                         aria-selected="false"
@@ -1423,9 +1546,10 @@ function Dashboard() {
                         }}
                       >
                         <div
+                          className="search-suggestion-line"
                           style={{
                             display: 'flex',
-                            alignItems: 'baseline',
+                            alignItems: 'center',
                             gap: 12,
                             minWidth: 0,
                             overflow: 'hidden',
@@ -1515,20 +1639,30 @@ function Dashboard() {
               <i />
             </button>
 
-            <div className="user">
-              <div className="avatar">
-                {(user?.name || 'U').trim().charAt(0).toUpperCase()}
-              </div>
-              <b>{user?.name || 'HomeAI User'}</b>
-          
+            <div className="user" ref={profileMenuRef}>
               <button
                 type="button"
-                className="logout-button"
-                onClick={logout}
-                title="Logout"
+                className="profile-avatar-trigger"
+                aria-label="Open profile menu"
+                aria-expanded={profileMenuOpen}
+                onClick={() => setProfileMenuOpen((open) => !open)}
+                title="Profile options"
               >
-                Logout
+                <div className="avatar">
+                  {(user?.name || 'U').trim().charAt(0).toUpperCase()}
+                </div>
+                <b>{user?.name || 'HomeAI User'}</b>
               </button>
+              {profileMenuOpen && (
+                <div className="profile-menu" role="menu">
+                  <button type="button" role="menuitem" onClick={() => { setProfileMenuOpen(false); openWorkspacePage('Settings'); }}>
+                    <Settings size={16} /> User Settings
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => { setProfileMenuOpen(false); logout(); }}>
+                    <ArrowRight size={16} /> Logout
+                  </button>
+                </div>
+              )}
             </div>
 
           </div>
@@ -1817,14 +1951,14 @@ function Dashboard() {
                   </div>
                 ) : (
                   <div className="product-grid inventory-product-grid">
-                    {visibleProducts.map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        onEdit={() => openEditProduct(product)}
-                        onDelete={() => deleteProduct(product.id)}
-                      />
-                    ))}
+                      {visibleProducts.map((product) => (
+                        <ProductCard
+                          key={product.id}
+                          product={product}
+                          onEdit={() => openEditProduct(product)}
+                          onDelete={() => deleteProduct(product.id)}
+                        />
+                      ))}
                   </div>
                 )}
               </section>
@@ -3275,6 +3409,8 @@ function Calendar({ month, products = [] }) {
           position: relative;
           cursor: default;
           outline-offset: 2px;
+          touch-action: manipulation;
+          -webkit-tap-highlight-color: transparent;
         }
 
         .calendar .days .calendar-date.has-expiry {
@@ -3430,9 +3566,7 @@ function Calendar({ month, products = [] }) {
                 if (hasItems) setSelectedDay(day);
               }}
               onClick={() => {
-                if (hasItems) {
-                  setSelectedDay((current) => (current === day ? null : day));
-                }
+                if (hasItems) setSelectedDay(day);
               }}
               onKeyDown={(event) => {
                 if (hasItems && (event.key === 'Enter' || event.key === ' ')) {
