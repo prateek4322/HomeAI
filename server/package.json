@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@google/genai": "^2.32.0",

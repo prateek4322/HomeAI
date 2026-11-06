@@ -1,19 +1,19 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import "dotenv/config";
+
+const globalForPrisma = globalThis;
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
+  max: 2,
+  connectionTimeoutMillis: 5000,
+  idleTimeoutMillis: 10000,
 });
 
-export const prisma = new PrismaClient({ adapter });
+export const prisma =
+  globalForPrisma.prisma ||
+  new PrismaClient({
+    adapter,
+  });
 
-export async function connectDatabase() {
-  try {
-    await prisma.$connect();
-    console.log("PostgreSQL Connected Successfully");
-  } catch (error) {
-    console.error("Database Connection Failed:", error);
-    process.exit(1);
-  }
-}
+globalForPrisma.prisma = prisma;
