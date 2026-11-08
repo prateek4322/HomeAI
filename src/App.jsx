@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
-
+import AdminDashboard from './components/AdminDashboard.jsx';
 import {
   getProducts,
   getDashboardSummary,
@@ -3650,7 +3650,23 @@ function Calendar({ month, products = [] }) {
 }
 
 function App() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
+
+  const [currentPath, setCurrentPath] = useState(
+    window.location.pathname
+  );
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setCurrentPath(window.location.pathname);
+    };
+
+    window.addEventListener('popstate', handleLocationChange);
+
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -3664,7 +3680,12 @@ function App() {
     return <AuthPage />;
   }
 
+  const normalizedPath = currentPath.replace(/\/+$/, '');
+
+  if (normalizedPath === '/admin') {
+    return <AdminDashboard />;
+  }
+
   return <Dashboard />;
 }
-
 export default App;
