@@ -6,13 +6,24 @@ datasource db {
   provider = "postgresql"
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
 model User {
   id           Int       @id @default(autoincrement())
   name         String
   email        String    @unique
   passwordHash String
+
+  // Admin Panel Role
+  role         UserRole  @default(USER)
+
+  // User Products
   products     Product[]
 
+  // Password Reset
   resetPasswordToken   String?
   resetPasswordExpires DateTime?
 
@@ -21,21 +32,25 @@ model User {
 }
 
 model Product {
-id          Int      @id @default(autoincrement())
-name        String
-brand       String?
-quantity    String?
-location    String   @default("Kitchen")
-daysLeft    Int      @default(7)
-expiryDate  DateTime?
-category    String   @default("Food")
-emoji       String   @default("📦")
-barcode     String?
-description String?
-userId      Int?
-user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-createdAt   DateTime @default(now())
-updatedAt   DateTime @updatedAt
-imageUrl    String?
-@@unique([userId, barcode])
+  id          Int      @id @default(autoincrement())
+  name        String
+  brand       String?
+  quantity    String?
+  location    String   @default("Kitchen")
+  daysLeft    Int      @default(7)
+  expiryDate  DateTime?
+  category    String   @default("Food")
+  emoji       String   @default("📦")
+  barcode     String?
+  description String?
+
+  // User Relationship
+  userId      Int?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  imageUrl    String?
+
+  @@unique([userId, barcode])
 }
