@@ -32,6 +32,7 @@ import {
 } from 'recharts';
 
 import './styles.css';
+import AdminDashboard from './components/AdminDashboard.jsx';
 
 const initialProducts = [
   {
@@ -3651,6 +3652,23 @@ function Calendar({ month, products = [] }) {
 
 function App() {
   const { isAuthenticated, loading } = useAuth();
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+
+  useEffect(() => {
+    const handleLocationChange = () => setCurrentPath(window.location.pathname);
+    window.addEventListener('popstate', handleLocationChange);
+    return () => window.removeEventListener('popstate', handleLocationChange);
+  }, []);
+
+  const openAdminPanel = () => {
+    window.history.pushState({}, '', '/admin');
+    setCurrentPath('/admin');
+  };
+
+  const closeAdminPanel = () => {
+    window.history.pushState({}, '', '/');
+    setCurrentPath('/');
+  };
 
   if (loading) {
     return (
@@ -3664,7 +3682,11 @@ function App() {
     return <AuthPage />;
   }
 
-  return <Dashboard />;
+  if (currentPath.replace(/\\/+$/ '') === '/admin') {
+    return <AdminDashboard onBack={closeAdminPanel} />;
+  }
+
+  return <Dashboard onOpenAdmin={openAdminPanel} />;
 }
 
 export default App;
