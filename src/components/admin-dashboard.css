@@ -36,3 +36,29 @@
 .ha-edit-modal-actions .ha-primary-button{display:inline-flex;align-items:center;gap:8px;}
 .ha-edit-modal button:disabled{opacity:.55;cursor:not-allowed;}
 @media(max-width:620px){.ha-edit-grid{grid-template-columns:1fr;}.ha-edit-modal{padding:18px;border-radius:16px;}}
+
+
+/* Premium product deletion confirmation */
+.ha-confirm-backdrop{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:20px;background:rgba(2,9,6,.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);animation:haConfirmFade .18s ease-out;}
+.ha-confirm-modal{width:min(100%,440px);position:relative;overflow:hidden;padding:28px;border:1px solid rgba(255,255,255,.11);border-radius:22px;background:radial-gradient(circle at 100% 0%,rgba(240,104,87,.12),transparent 38%),linear-gradient(145deg,#14231b 0%,#0b1510 75%);box-shadow:0 28px 100px rgba(0,0,0,.62),0 0 0 1px rgba(255,255,255,.025) inset;color:#eff8f0;animation:haConfirmRise .22s ease-out;}
+.ha-confirm-icon{width:52px;height:52px;display:grid;place-items:center;margin-bottom:19px;border:1px solid rgba(242,117,102,.22);border-radius:16px;background:linear-gradient(145deg,rgba(245,111,96,.2),rgba(155,53,43,.13));color:#ff9b8e;box-shadow:0 8px 24px rgba(180,61,49,.12);}
+.ha-confirm-modal>.ha-kicker{color:#f19b8f;letter-spacing:1.7px;font-size:9px;font-weight:800;}
+.ha-confirm-modal h2{margin:8px 0 9px;font-size:25px;letter-spacing:-.8px;}
+.ha-confirm-modal>p{margin:0;color:#9caf9f;font-size:12px;line-height:1.75;}
+.ha-confirm-product{display:flex;align-items:center;gap:12px;margin:20px 0 13px;padding:13px;border:1px solid rgba(175,216,184,.13);border-radius:13px;background:rgba(255,255,255,.035);min-width:0;}
+.ha-confirm-product-icon{width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;border-radius:11px;background:rgba(171,224,177,.1);color:#b5e6b5;}
+.ha-confirm-product>div:last-child{min-width:0;}
+.ha-confirm-product strong,.ha-confirm-product small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ha-confirm-product strong{color:#e7f2e9;font-size:12px;}
+.ha-confirm-product small{margin-top:5px;color:#819789;font-size:10px;}
+.ha-confirm-warning{display:flex;align-items:center;gap:8px;padding:10px 11px;border:1px solid rgba(240,155,112,.13);border-radius:10px;background:rgba(240,155,112,.055);color:#dca995;font-size:10px;line-height:1.5;}
+.ha-confirm-warning svg{flex:0 0 auto;color:#e9a17e;}
+.ha-confirm-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:23px;}
+.ha-confirm-actions .ha-cancel-button{height:42px;padding:0 15px;font-size:11px;}
+.ha-delete-confirm-button{height:42px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 16px;border:1px solid rgba(255,135,121,.28);border-radius:10px;background:linear-gradient(135deg,#d95d52,#ad3934);color:#fff7f5;font-size:11px;font-weight:800;box-shadow:0 7px 20px rgba(174,54,48,.2);cursor:pointer;transition:transform .16s ease,filter .16s ease,box-shadow .16s ease;}
+.ha-delete-confirm-button:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.08);box-shadow:0 10px 25px rgba(174,54,48,.3);}
+.ha-delete-confirm-button:disabled{opacity:.65;cursor:wait;}
+.ha-delete-spinner{width:13px;height:13px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:haSpin .7s linear infinite;}
+@keyframes haConfirmFade{from{opacity:0}to{opacity:1}}@keyframes haConfirmRise{from{opacity:0;transform:translateY(9px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:480px){.ha-confirm-modal{padding:22px 18px;border-radius:18px}.ha-confirm-modal h2{font-size:22px}.ha-confirm-actions{flex-direction:column-reverse}.ha-confirm-actions button{width:100%;height:44px}}
+@media(prefers-reduced-motion:reduce){.ha-confirm-backdrop,.ha-confirm-modal{animation:none}.ha-delete-confirm-button{transition:none}}

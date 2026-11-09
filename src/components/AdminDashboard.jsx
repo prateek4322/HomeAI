@@ -57,6 +57,7 @@ export default function AdminDashboard({ onBack }) {
   const [editingProduct, setEditingProduct] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', brand: '', category: 'Food', quantity: '', location: 'Kitchen', expiryDate: '' });
   const [savingProduct, setSavingProduct] = useState(false);
+  const [productPendingDelete, setProductPendingDelete] = useState(null);
 
   const loadOverview = useCallback(async () => {
     const data = await adminRequest('/admin/dashboard');
@@ -204,8 +205,12 @@ export default function AdminDashboard({ onBack }) {
   };
 
   const deleteProduct = async (product) => {
-    const label = product.name || `Product #${product.id}`;
-    if (!window.confirm(`Permanently delete “${label}” from the inventory? This cannot be undone.`)) return;
+    setProductPendingDelete(product);
+  };
+
+  const confirmDeleteProduct = async () => {
+    const product = productPendingDelete;
+    if (!product) return;
     setBusyId(product.id);
     setError('');
     setNotice('');
@@ -213,6 +218,7 @@ export default function AdminDashboard({ onBack }) {
       await adminRequest(`/admin/products/${product.id}`, { method: 'DELETE' });
       setProducts((current) => current.filter((item) => item.id !== product.id));
       setNotice('Product deleted successfully.');
+      setProductPendingDelete(null);
       await loadOverview();
       if (products.length === 1 && productPage > 1) setProductPage((page) => page - 1);
       else await loadProducts();
@@ -375,6 +381,34 @@ export default function AdminDashboard({ onBack }) {
           </div>
         </section>
       </div>
+
+      {productPendingDelete && (
+        <div
+          className="ha-confirm-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && busyId !== productPendingDelete.id) setProductPendingDelete(null);
+          }}
+        >
+          <section className="ha-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="ha-delete-title" aria-describedby="ha-delete-description">
+            <div className="ha-confirm-icon"><Trash2 size={23} /></div>
+            <span className="ha-kicker">PERMANENT ACTION</span>
+            <h2 id="ha-delete-title">Delete this product?</h2>
+            <p id="ha-delete-description">You are about to permanently remove this item from the HomeAI inventory. This action cannot be undone.</p>
+            <div className="ha-confirm-product">
+              <div className="ha-confirm-product-icon"><Package size={19} /></div>
+              <div><strong>{productPendingDelete.name || `Product #${productPendingDelete.id}`}</strong><small>{productPendingDelete.brand || productPendingDelete.category || 'Inventory item'}{productPendingDelete.user?.name ? ` · Owned by ${productPendingDelete.user.name}` : ''}</small></div>
+            </div>
+            <div className="ha-confirm-warning"><AlertTriangle size={15} /><span>The product record will be deleted from the database.</span></div>
+            <div className="ha-confirm-actions">
+              <button type="button" className="ha-cancel-button" disabled={busyId === productPendingDelete.id} onClick={() => setProductPendingDelete(null)}>Keep product</button>
+              <button type="button" className="ha-delete-confirm-button" disabled={busyId === productPendingDelete.id} onClick={confirmDeleteProduct}>
+                {busyId === productPendingDelete.id ? <><span className="ha-delete-spinner" /> Deleting…</> : <><Trash2 size={15} /> Delete permanently</>}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
