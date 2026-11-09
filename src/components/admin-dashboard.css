@@ -89,3 +89,110 @@
 .ha-role-confirm:hover:not(:disabled){background:#059669;transform:translateY(-1px)}
 .ha-role-confirm:disabled{opacity:.6;cursor:not-allowed}
 @media(max-width:480px){.ha-role-modal{padding:24px}.ha-role-actions{flex-direction:column-reverse}}
+
+/* Mobile admin workspace upgrade */
+.ha-mobile-menu-button,
+.ha-mobile-sidebar-close,
+.ha-mobile-nav-backdrop { display: none; }
+
+@media (max-width: 720px) {
+  .ha-admin-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: 9px;
+    background: rgba(8, 15, 13, .94);
+    backdrop-filter: blur(16px);
+  }
+  .ha-mobile-menu-button {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--ha-border);
+    border-radius: 11px;
+    color: #cce8d1;
+    background: #142019;
+  }
+  .ha-mobile-brand { min-width: 0; }
+  .ha-mobile-brand strong { white-space: nowrap; }
+  .ha-top-actions { justify-content: flex-end; }
+  .ha-live-pill { display: none; }
+  .ha-admin-sidebar {
+    display: flex !important;
+    position: fixed;
+    z-index: 52;
+    inset: 0 auto 0 0;
+    width: min( min(310px, 86vw), 310px );
+    min-height: 100dvh;
+    padding: 28px 18px 20px;
+    padding-top: max(28px, env(safe-area-inset-top));
+    border-right: 1px solid rgba(167, 229, 181, .2);
+    box-shadow: 25px 0 80px rgba(0,0,0,.55);
+    transform: translateX(-105%);
+    transition: transform .25s ease;
+    overflow-y: auto;
+  }
+  .ha-admin-sidebar.mobile-open { transform: translateX(0); }
+  .ha-mobile-sidebar-close {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: 18px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--ha-border);
+    border-radius: 10px;
+    color: #cce8d1;
+    background: #17251c;
+  }
+  .ha-mobile-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 51;
+    border: 0;
+    background: rgba(0,0,0,.62);
+    backdrop-filter: blur(3px);
+  }
+  .ha-admin-brand { padding-right: 42px; }
+  .ha-admin-sidebar .ha-side-link { min-height: 48px; font-size: 14px; }
+  .ha-admin-content { padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+  .ha-page-heading h1 { font-size: clamp(25px, 7vw, 32px); }
+  .ha-stat-card { min-height: 145px; }
+  .ha-table-wrap { margin-inline: -2px; padding-bottom: 5px; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+  .ha-table { min-width: 760px; }
+  .ha-table th, .ha-table td { padding: 12px 10px; }
+  .ha-toolbar { width: 100%; }
+  .ha-search { width: 100%; }
+  .ha-pagination { gap: 10px; flex-wrap: wrap; }
+  .ha-pagination button { min-height: 38px; padding: 8px 10px; }
+  .ha-row-actions { gap: 6px; }
+  .ha-action-button { min-height: 36px; }
+  .ha-icon-danger { min-width: 36px; min-height: 36px; justify-content: center; }
+  .ha-panel-heading { align-items: flex-start; }
+  .ha-date-chip { align-self: flex-start; }
+}
+
+@media (max-width: 420px) {
+  .ha-admin-topbar { padding-inline: 11px; grid-template-columns: 36px minmax(0,1fr) auto; gap: 7px; }
+  .ha-mobile-menu-button { width: 35px; height: 35px; }
+  .ha-mobile-brand { gap: 7px; font-size: 12px; }
+  .ha-mobile-brand .ha-brand-mark { width: 29px; height: 29px; }
+  .ha-refresh-button { min-width: 36px; min-height: 36px; justify-content: center; }
+  .ha-admin-content { padding-inline: 12px; }
+  .ha-stat-card { padding: 12px; min-height: 137px; }
+  .ha-stat-card>span { font-size: 10px; }
+  .ha-stat-card>strong { font-size: 23px; }
+  .ha-stat-card>small { font-size: 9px; }
+  .ha-risk-card { min-width: 0; }
+  .ha-risk-card span { font-size: 10px; }
+  .ha-panel { padding: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ha-admin-sidebar { transition: none; }
+}

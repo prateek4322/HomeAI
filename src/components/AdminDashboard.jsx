@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, ShieldCheck, LayoutDashboard, Users, Package, Search,
   RefreshCw, Shield, UserRound, Trash2, ChevronLeft, ChevronRight,
-  AlertTriangle, CheckCircle2, Clock3, Boxes, X, Crown, Pencil, Save,
+  AlertTriangle, CheckCircle2, Clock3, Boxes, X, Crown, Pencil, Save, Menu,
 } from 'lucide-react';
 import './admin-dashboard.css';
 
@@ -38,6 +38,7 @@ const number = (value) => new Intl.NumberFormat('en-IN').format(value || 0);
 
 export default function AdminDashboard({ onBack }) {
   const [tab, setTab] = useState('overview');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [stats, setStats] = useState(null);
   const [recentUsers, setRecentUsers] = useState([]);
   const [users, setUsers] = useState([]);
@@ -270,23 +271,44 @@ export default function AdminDashboard({ onBack }) {
   return (
     <main className="ha-admin-shell">
       <div className="ha-admin-layout">
-        <aside className="ha-admin-sidebar">
+        {mobileNavOpen && (
+          <button
+            type="button"
+            className="ha-mobile-nav-backdrop"
+            aria-label="Close navigation"
+            onClick={() => setMobileNavOpen(false)}
+          />
+        )}
+        <aside className={`ha-admin-sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}>
+          <button
+            type="button"
+            className="ha-mobile-sidebar-close"
+            onClick={() => setMobileNavOpen(false)}
+            aria-label="Close menu"
+          ><X size={19} /></button>
           <div className="ha-admin-brand">
             <div className="ha-brand-mark"><ShieldCheck size={22} /></div>
             <div><strong>Home<span>AI</span></strong><small>CONTROL CENTER</small></div>
           </div>
           <div className="ha-side-label">WORKSPACE</div>
-          <button className={`ha-side-link ${tab === 'overview' ? 'active' : ''}`} onClick={() => setTab('overview')}><LayoutDashboard size={18} /> Overview</button>
-          <button className={`ha-side-link ${tab === 'users' ? 'active' : ''}`} onClick={() => { setTab('users'); setUserPage(1); }}><Users size={18} /> User management</button>
-          <button className={`ha-side-link ${tab === 'products' ? 'active' : ''}`} onClick={() => { setTab('products'); setProductPage(1); }}><Package size={18} /> All products</button>
+          <button className={`ha-side-link ${tab === 'overview' ? 'active' : ''}`} onClick={() => { setTab('overview'); setMobileNavOpen(false); }}><LayoutDashboard size={18} /> Overview</button>
+          <button className={`ha-side-link ${tab === 'users' ? 'active' : ''}`} onClick={() => { setTab('users'); setUserPage(1); setMobileNavOpen(false); }}><Users size={18} /> User management</button>
+          <button className={`ha-side-link ${tab === 'products' ? 'active' : ''}`} onClick={() => { setTab('products'); setProductPage(1); setMobileNavOpen(false); }}><Package size={18} /> All products</button>
           <div className="ha-sidebar-bottom">
             <div className="ha-secure-note"><ShieldCheck size={16} /><span>Protected workspace<br /><b>Role verified by API</b></span></div>
-            <button className="ha-back-link" onClick={goBackHome}><ArrowLeft size={16} /> Back to HomeAI</button>
+            <button className="ha-back-link" onClick={() => { setMobileNavOpen(false); goBackHome(); }}><ArrowLeft size={16} /> Back to HomeAI</button>
           </div>
         </aside>
 
         <section className="ha-admin-main">
           <header className="ha-admin-topbar">
+            <button
+              type="button"
+              className="ha-mobile-menu-button"
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Open admin navigation"
+              aria-expanded={mobileNavOpen}
+            ><Menu size={20} /></button>
             <div className="ha-mobile-brand"><div className="ha-brand-mark"><ShieldCheck size={19} /></div><strong>HomeAI Admin</strong></div>
             <div className="ha-breadcrumb">HomeAI <span>/</span> <b>Admin Console</b></div>
             <div className="ha-top-actions">
