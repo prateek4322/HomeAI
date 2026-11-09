@@ -183,15 +183,14 @@ Check the current Express route files for exact methods, request bodies and resp
 
 ## 🖥️ Screenshots
 
-Add current screenshots from the deployed application to a `screenshots/` folder, then replace these placeholders.
+![Home AI Dashboard](./screenshots/dashboard.png)
 
-| Dashboard | Inventory |
-|:---:|:---:|
-| `screenshots/dashboard.png` | `screenshots/inventory.png` |
+![Inventory Management](./screenshots/inventory.png)
 
-| Barcode Scanner | AI Assistant |
-|:---:|:---:|
-| `screenshots/scanner.png` | `screenshots/ai-assistant.png` |
+![Barcode Scanner](./screenshots/scanner.png)
+
+![AI Assistant](./screenshots/ai-assistant.png)
+
 
 ## 📁 Project Structure
 
