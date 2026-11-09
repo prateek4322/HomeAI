@@ -5,7 +5,7 @@ import morgan from "morgan";
 
 import { protect } from "./middleware/authMiddleware.js";
 import { prisma } from "./config/database.js";
-
+import adminRoutes from "./routes/adminRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
@@ -36,6 +36,8 @@ app.use("/api/products", productRoutes);
 
 // AI Assistant
 app.use("/api/ai", aiRoutes);
+// Admin Dashboard
+app.use("/api/admin", adminRoutes);
 
 // Dashboard Summary
 app.get("/api/dashboard/summary", protect, async (req, res) => {
