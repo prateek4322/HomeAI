@@ -57,7 +57,10 @@ export default function AdminDashboard({ onBack }) {
   const [editingProduct, setEditingProduct] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', brand: '', category: 'Food', quantity: '', location: 'Kitchen', expiryDate: '' });
   const [savingProduct, setSavingProduct] = useState(false);
-  const [productPendingDelete, setProductPendingDelete] = useState(null);
+  const [deleteDialog, setDeleteDialog] = useState(null);
+  const [deletePhrase, setDeletePhrase] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadOverview = useCallback(async () => {
     const data = await adminRequest('/admin/dashboard');
@@ -89,6 +92,7 @@ export default function AdminDashboard({ onBack }) {
 
   const refreshAll = useCallback(async () => {
     setLoading(true);
+    setRefreshing(true);
     setError('');
     setAccessDenied(false);
     try {
@@ -98,6 +102,7 @@ export default function AdminDashboard({ onBack }) {
       setError(err.message || 'Could not load admin dashboard.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [loadOverview]);
 
@@ -148,19 +153,37 @@ export default function AdminDashboard({ onBack }) {
     }
   };
 
-  const deleteUser = async (target) => {
-    if (!window.confirm(`Permanently delete ${target.name || target.email} and their saved products?`)) return;
+  const deleteUser = (target) => {
+    setDeletePhrase('');
+    setDeleteDialog({ type: 'user', target });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteDialog || deletePhrase.trim() !== 'DELETE') return;
+    const { type, target } = deleteDialog;
+    setDeleting(true);
     setBusyId(target.id);
     setError('');
     setNotice('');
     try {
-      await adminRequest(`/admin/users/${target.id}`, { method: 'DELETE' });
-      setNotice('User and associated products deleted.');
-      await loadUsers();
+      if (type === 'user') {
+        await adminRequest(`/admin/users/${target.id}`, { method: 'DELETE' });
+        setNotice('User account and associated products deleted.');
+        await loadUsers();
+      } else {
+        await adminRequest(`/admin/products/${target.id}`, { method: 'DELETE' });
+        setProducts((current) => current.filter((item) => item.id !== target.id));
+        setNotice('Product deleted successfully.');
+        if (products.length === 1 && productPage > 1) setProductPage((page) => page - 1);
+        else await loadProducts();
+      }
       await loadOverview();
+      setDeleteDialog(null);
+      setDeletePhrase('');
     } catch (err) {
-      setError(err.message || 'Could not delete user.');
+      setError(err.message || `Could not delete ${type}.`);
     } finally {
+      setDeleting(false);
       setBusyId(null);
     }
   };
@@ -204,29 +227,9 @@ export default function AdminDashboard({ onBack }) {
     }
   };
 
-  const deleteProduct = async (product) => {
-    setProductPendingDelete(product);
-  };
-
-  const confirmDeleteProduct = async () => {
-    const product = productPendingDelete;
-    if (!product) return;
-    setBusyId(product.id);
-    setError('');
-    setNotice('');
-    try {
-      await adminRequest(`/admin/products/${product.id}`, { method: 'DELETE' });
-      setProducts((current) => current.filter((item) => item.id !== product.id));
-      setNotice('Product deleted successfully.');
-      setProductPendingDelete(null);
-      await loadOverview();
-      if (products.length === 1 && productPage > 1) setProductPage((page) => page - 1);
-      else await loadProducts();
-    } catch (err) {
-      setError(err.message || 'Could not delete product.');
-    } finally {
-      setBusyId(null);
-    }
+  const deleteProduct = (product) => {
+    setDeletePhrase('');
+    setDeleteDialog({ type: 'product', target: product });
   };
 
   const goBackHome = () => {
@@ -283,7 +286,7 @@ export default function AdminDashboard({ onBack }) {
             <div className="ha-breadcrumb">HomeAI <span>/</span> <b>Admin Console</b></div>
             <div className="ha-top-actions">
               <span className="ha-live-pill"><i /> SECURE SESSION</span>
-              <button className="ha-refresh-button" onClick={refreshAll} title="Refresh dashboard"><RefreshCw size={16} /> Refresh</button>
+              <button className="ha-refresh-button" onClick={refreshAll} title="Refresh dashboard" disabled={refreshing}><RefreshCw className={refreshing ? 'ha-spin-icon' : ''} size={16} /> {refreshing ? 'Refreshing…' : 'Refresh'}</button>
             </div>
           </header>
 
@@ -327,7 +330,7 @@ export default function AdminDashboard({ onBack }) {
               <section className="ha-panel">
                 <div className="ha-panel-heading"><div><span className="ha-kicker">ACCOUNT DIRECTORY</span><h2>All registered users</h2></div><span className="ha-result-count">{number(userPagination?.total)} accounts</span></div>
                 <div className="ha-toolbar"><label className="ha-search"><Search size={17} /><input value={userSearch} placeholder="Search name or email…" onChange={(e) => { setUserSearch(e.target.value); setUserPage(1); }} /></label></div>
-                {tableLoading ? <div className="ha-empty">Loading users…</div> : users.length ? (
+                {tableLoading ? <div className="ha-table-loading"><span className="ha-spinner ha-spinner-large" /><strong>Loading user directory</strong><small>Fetching account records securely…</small></div> : users.length ? (
                   <div className="ha-table-wrap"><table className="ha-table"><thead><tr><th>USER</th><th>EMAIL</th><th>PRODUCTS</th><th>ROLE</th><th>JOINED</th><th>ACTIONS</th></tr></thead><tbody>
                     {users.map((person) => <tr key={person.id}>
                       <td><div className="ha-user-cell"><span className="ha-avatar">{(person.name || person.email || 'U').charAt(0).toUpperCase()}</span><b>{person.name || 'Unnamed user'}</b></div></td>
@@ -349,13 +352,69 @@ export default function AdminDashboard({ onBack }) {
               <section className="ha-panel">
                 <div className="ha-panel-heading"><div><span className="ha-kicker">GLOBAL INVENTORY</span><h2>All saved products</h2></div><span className="ha-result-count">{number(productPagination?.total)} products</span></div>
                 <div className="ha-toolbar"><label className="ha-search"><Search size={17} /><input value={productSearch} placeholder="Search product, brand or category…" onChange={(e) => { setProductSearch(e.target.value); setProductPage(1); }} /></label></div>
-                {tableLoading ? <div className="ha-empty">Loading products…</div> : products.length ? (
+                {tableLoading ? <div className="ha-table-loading"><span className="ha-spinner ha-spinner-large" /><strong>Loading inventory</strong><small>Fetching product records…</small></div> : products.length ? (
                   <div className="ha-table-wrap"><table className="ha-table"><thead><tr><th>PRODUCT</th><th>CATEGORY</th><th>QUANTITY</th><th>LOCATION</th><th>OWNER</th><th>EXPIRY</th><th>ACTIONS</th></tr></thead><tbody>
                     {products.map((product) => <tr key={product.id}><td><b>{product.name}</b>{product.brand && <small className="ha-subcell">{product.brand}</small>}</td><td>{product.category || 'Other'}</td><td>{product.quantity || '—'}</td><td>{product.location || '—'}</td><td>{product.user?.name || product.user?.email || 'Unknown'}</td><td>{product.expiryDate ? new Date(product.expiryDate).toLocaleDateString('en-IN') : 'Not set'}</td><td><div className="ha-row-actions"><button className="ha-action-button" disabled={busyId === product.id} onClick={() => openProductEditor(product)} title="Edit product"><Pencil size={14} /> Edit</button><button className="ha-icon-danger" disabled={busyId === product.id} onClick={() => deleteProduct(product)} title="Delete product"><Trash2 size={15} /></button></div></td></tr>)}
                   </tbody></table></div>
                 ) : <div className="ha-empty">No products found.</div>}
                 <div className="ha-pagination"><span>Page {productPagination?.page || 1} of {Math.max(productPagination?.totalPages || 1, 1)}</span><div><button disabled={!productPagination || productPage <= 1} onClick={() => setProductPage((p) => p - 1)}><ChevronLeft size={16} /> Previous</button><button disabled={!productPagination || productPage >= productPagination.totalPages} onClick={() => setProductPage((p) => p + 1)}>Next <ChevronRight size={16} /></button></div></div>
               </section>
+            )}
+
+            {deleteDialog && (
+              <div
+                className="ha-modal-backdrop ha-danger-backdrop"
+                role="presentation"
+                onMouseDown={(event) => {
+                  if (event.target === event.currentTarget && !deleting) {
+                    setDeleteDialog(null);
+                    setDeletePhrase('');
+                  }
+                }}
+              >
+                <section className="ha-delete-modal" role="dialog" aria-modal="true" aria-labelledby="ha-delete-title">
+                  <button
+                    type="button"
+                    className="ha-modal-close ha-delete-close"
+                    onClick={() => { if (!deleting) { setDeleteDialog(null); setDeletePhrase(''); } }}
+                    disabled={deleting}
+                    aria-label="Close delete confirmation"
+                  ><X size={18} /></button>
+                  <div className="ha-delete-symbol"><Trash2 size={25} /></div>
+                  <span className="ha-kicker ha-danger-kicker">IRREVERSIBLE ACTION</span>
+                  <h2 id="ha-delete-title">{deleteDialog.type === 'user' ? 'Delete this account?' : 'Delete this product?'}</h2>
+                  <p className="ha-delete-description">
+                    {deleteDialog.type === 'user'
+                      ? <>You are about to permanently remove <strong>{deleteDialog.target.name || deleteDialog.target.email}</strong> and all inventory linked to this account.</>
+                      : <>You are about to permanently remove <strong>{deleteDialog.target.name || `Product #${deleteDialog.target.id}`}</strong> from the global inventory.</>}
+                  </p>
+                  {deleteDialog.type === 'user' && (
+                    <div className="ha-delete-impact">
+                      <div><span>Account</span><strong>{deleteDialog.target.email}</strong></div>
+                      <div><span>Linked products</span><strong>{number(deleteDialog.target.productCount)}</strong></div>
+                      <div><span>Access role</span><strong>{deleteDialog.target.role}</strong></div>
+                    </div>
+                  )}
+                  <div className="ha-delete-warning"><AlertTriangle size={17} /><span>This action cannot be undone. The deleted data cannot be recovered.</span></div>
+                  <label className="ha-delete-confirm-label">Type <b>DELETE</b> to confirm
+                    <input
+                      autoFocus
+                      value={deletePhrase}
+                      onChange={(event) => setDeletePhrase(event.target.value)}
+                      placeholder="Type DELETE here"
+                      disabled={deleting}
+                      autoComplete="off"
+                      spellCheck="false"
+                    />
+                  </label>
+                  <div className="ha-delete-actions">
+                    <button type="button" className="ha-cancel-button" onClick={() => { setDeleteDialog(null); setDeletePhrase(''); }} disabled={deleting}>{deleteDialog.type === 'user' ? 'Keep account' : 'Keep product'}</button>
+                    <button type="button" className="ha-confirm-delete" onClick={confirmDelete} disabled={deleting || deletePhrase.trim() !== 'DELETE'}>
+                      {deleting ? <><span className="ha-button-spinner" /> Deleting…</> : <><Trash2 size={15} /> Delete permanently</>}
+                    </button>
+                  </div>
+                </section>
+              </div>
             )}
 
             {editingProduct && (
@@ -381,34 +440,6 @@ export default function AdminDashboard({ onBack }) {
           </div>
         </section>
       </div>
-
-      {productPendingDelete && (
-        <div
-          className="ha-confirm-backdrop"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget && busyId !== productPendingDelete.id) setProductPendingDelete(null);
-          }}
-        >
-          <section className="ha-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="ha-delete-title" aria-describedby="ha-delete-description">
-            <div className="ha-confirm-icon"><Trash2 size={23} /></div>
-            <span className="ha-kicker">PERMANENT ACTION</span>
-            <h2 id="ha-delete-title">Delete this product?</h2>
-            <p id="ha-delete-description">You are about to permanently remove this item from the HomeAI inventory. This action cannot be undone.</p>
-            <div className="ha-confirm-product">
-              <div className="ha-confirm-product-icon"><Package size={19} /></div>
-              <div><strong>{productPendingDelete.name || `Product #${productPendingDelete.id}`}</strong><small>{productPendingDelete.brand || productPendingDelete.category || 'Inventory item'}{productPendingDelete.user?.name ? ` · Owned by ${productPendingDelete.user.name}` : ''}</small></div>
-            </div>
-            <div className="ha-confirm-warning"><AlertTriangle size={15} /><span>The product record will be deleted from the database.</span></div>
-            <div className="ha-confirm-actions">
-              <button type="button" className="ha-cancel-button" disabled={busyId === productPendingDelete.id} onClick={() => setProductPendingDelete(null)}>Keep product</button>
-              <button type="button" className="ha-delete-confirm-button" disabled={busyId === productPendingDelete.id} onClick={confirmDeleteProduct}>
-                {busyId === productPendingDelete.id ? <><span className="ha-delete-spinner" /> Deleting…</> : <><Trash2 size={15} /> Delete permanently</>}
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
     </main>
   );
 }
