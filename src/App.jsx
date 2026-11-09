@@ -3728,12 +3728,8 @@ function App() {
 
   if (!isAuthenticated) return <AuthPage />;
 
-  if (adminCheckLoading) {
-    return (
-      <div className="auth-loading">
-        <span>Verifying account access...</span>
-      </div>
-    );
+  if (normalizedPath === '/admin' && adminCheckLoading) {
+    return <Dashboard />;
   }
 
   if (normalizedPath === '/admin' && isAdmin) {
