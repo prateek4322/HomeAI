@@ -158,3 +158,82 @@ export const getAdminProducts = async (req, res) => {
     return res.status(500).json({ message: "Unable to load products." });
   }
 };
+
+// Admin can edit any inventory record after protect + adminOnly verification.
+export const updateAdminProduct = async (req, res) => {
+  try {
+    const id = Number.parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ message: "Invalid product ID." });
+    }
+
+    const existing = await prisma.product.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ message: "Product not found." });
+
+    const { name, brand, category, quantity, location, expiryDate } = req.body || {};
+    if (typeof name !== "string" || !name.trim()) {
+      return res.status(400).json({ message: "Product name is required." });
+    }
+
+    let parsedExpiry = null;
+    if (expiryDate !== null && expiryDate !== undefined && expiryDate !== "") {
+      parsedExpiry = new Date(expiryDate);
+      if (Number.isNaN(parsedExpiry.getTime())) {
+        return res.status(400).json({ message: "Invalid expiry date." });
+      }
+    }
+
+    let daysLeft = existing.daysLeft;
+    if (parsedExpiry) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const expiryDay = new Date(parsedExpiry);
+      expiryDay.setHours(0, 0, 0, 0);
+      daysLeft = Math.ceil((expiryDay.getTime() - today.getTime()) / 86400000);
+    }
+
+    const product = await prisma.product.update({
+      where: { id },
+      data: {
+        name: name.trim(),
+        brand: typeof brand === "string" ? (brand.trim() || null) : existing.brand,
+        category: typeof category === "string" && category.trim() ? category.trim() : existing.category,
+        quantity: typeof quantity === "string" ? (quantity.trim() || null) : existing.quantity,
+        location: typeof location === "string" && location.trim() ? location.trim() : existing.location,
+        expiryDate: parsedExpiry,
+        daysLeft,
+      },
+      select: {
+        id: true, name: true, brand: true, category: true, quantity: true,
+        location: true, expiryDate: true, daysLeft: true, createdAt: true,
+        user: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    return res.json({ message: "Product updated successfully.", product });
+  } catch (error) {
+    console.error("UPDATE ADMIN PRODUCT ERROR:", error);
+    return res.status(500).json({ message: "Unable to update product." });
+  }
+};
+
+export const deleteAdminProduct = async (req, res) => {
+  try {
+    const id = Number.parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ message: "Invalid product ID." });
+    }
+
+    const existing = await prisma.product.findUnique({
+      where: { id },
+      select: { id: true, name: true },
+    });
+    if (!existing) return res.status(404).json({ message: "Product not found." });
+
+    await prisma.product.delete({ where: { id } });
+    return res.json({ message: "Product deleted successfully.", productId: id });
+  } catch (error) {
+    console.error("DELETE ADMIN PRODUCT ERROR:", error);
+    return res.status(500).json({ message: "Unable to delete product." });
+  }
+};

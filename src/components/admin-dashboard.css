@@ -19,3 +19,20 @@
 @media(max-width:1050px){.ha-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ha-admin-layout{grid-template-columns:210px minmax(0,1fr)}.ha-admin-sidebar{padding-inline:13px}}
 @media(max-width:720px){.ha-admin-shell{padding:0}.ha-admin-layout{display:block;min-height:100dvh;border:0;border-radius:0}.ha-admin-sidebar{display:none}.ha-admin-topbar{height:62px;padding:0 16px}.ha-mobile-brand{display:flex;align-items:center;gap:9px;font-size:13px}.ha-mobile-brand .ha-brand-mark{width:32px;height:32px;border-radius:10px}.ha-breadcrumb{display:none}.ha-top-actions{gap:8px}.ha-live-pill{font-size:8px}.ha-refresh-button{font-size:0;padding:9px}.ha-refresh-button svg{width:17px}.ha-admin-content{padding:24px 15px 18px}.ha-page-heading{align-items:flex-start;flex-direction:column;margin-bottom:20px}.ha-date-chip{font-size:10px}.ha-stat-grid{gap:9px}.ha-stat-card{padding:14px}.ha-stat-icon{margin-bottom:13px;width:34px;height:34px}.ha-stat-card>strong{font-size:25px}.ha-risk-grid{gap:9px}.ha-risk-card{padding:12px;gap:9px}.ha-risk-card strong{font-size:19px}.ha-panel{padding:14px;border-radius:14px}.ha-panel-heading h2{font-size:15px}.ha-admin-footer{flex-direction:column}.ha-denied-card{margin:18vh 16px;padding:28px 20px}}
 @media(max-width:390px){.ha-stat-grid{grid-template-columns:1fr 1fr}.ha-stat-card>strong{font-size:22px}.ha-risk-grid{grid-template-columns:1fr}.ha-result-count{font-size:9px}}
+
+/* Product edit modal */
+.ha-modal-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.68);backdrop-filter:blur(7px);display:grid;place-items:center;padding:18px;}
+.ha-edit-modal{width:min(100%,620px);max-height:min(90vh,760px);overflow:auto;background:#0d1a14;border:1px solid rgba(164,221,183,.22);border-radius:20px;padding:24px;box-shadow:0 24px 80px rgba(0,0,0,.48);color:#ecf7ef;}
+.ha-edit-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px;}
+.ha-edit-modal-head h2{margin:7px 0 5px;font-size:24px;}
+.ha-edit-modal-head p{margin:0;color:#91ab9b;font-size:13px;}
+.ha-modal-close{width:36px;height:36px;display:grid;place-items:center;border:1px solid rgba(164,221,183,.18);border-radius:10px;background:#13251b;color:#d7e9dc;cursor:pointer;}
+.ha-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;}
+.ha-edit-grid label{display:grid;gap:7px;color:#a9c5b3;font-size:12px;font-weight:600;}
+.ha-edit-grid input{width:100%;min-width:0;height:42px;padding:0 12px;border:1px solid rgba(164,221,183,.2);border-radius:9px;background:#09140f;color:#f1fff5;outline:none;}
+.ha-edit-grid input:focus{border-color:#8fdaa7;box-shadow:0 0 0 3px rgba(143,218,167,.1);}
+.ha-edit-modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px;}
+.ha-cancel-button{height:40px;padding:0 16px;border:1px solid rgba(164,221,183,.2);border-radius:9px;background:transparent;color:#c5d8cb;cursor:pointer;}
+.ha-edit-modal-actions .ha-primary-button{display:inline-flex;align-items:center;gap:8px;}
+.ha-edit-modal button:disabled{opacity:.55;cursor:not-allowed;}
+@media(max-width:620px){.ha-edit-grid{grid-template-columns:1fr;}.ha-edit-modal{padding:18px;border-radius:16px;}}

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, ShieldCheck, LayoutDashboard, Users, Package, Search,
   RefreshCw, Shield, UserRound, Trash2, ChevronLeft, ChevronRight,
-  AlertTriangle, CheckCircle2, Clock3, Boxes, X, Crown,
+  AlertTriangle, CheckCircle2, Clock3, Boxes, X, Crown, Pencil, Save,
 } from 'lucide-react';
 import './admin-dashboard.css';
 
@@ -54,6 +54,9 @@ export default function AdminDashboard({ onBack }) {
   const [notice, setNotice] = useState('');
   const [accessDenied, setAccessDenied] = useState(false);
   const [busyId, setBusyId] = useState(null);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', brand: '', category: 'Food', quantity: '', location: 'Kitchen', expiryDate: '' });
+  const [savingProduct, setSavingProduct] = useState(false);
 
   const loadOverview = useCallback(async () => {
     const data = await adminRequest('/admin/dashboard');
@@ -161,6 +164,70 @@ export default function AdminDashboard({ onBack }) {
     }
   };
 
+  const openProductEditor = (product) => {
+    setEditingProduct(product);
+    setEditForm({
+      name: product.name || '',
+      brand: product.brand || '',
+      category: product.category || 'Food',
+      quantity: product.quantity || '',
+      location: product.location || 'Kitchen',
+      expiryDate: product.expiryDate ? new Date(product.expiryDate).toISOString().slice(0, 10) : '',
+    });
+    setError('');
+    setNotice('');
+  };
+
+  const saveProduct = async (event) => {
+    event.preventDefault();
+    if (!editingProduct || !editForm.name.trim()) return;
+    setSavingProduct(true);
+    setError('');
+    setNotice('');
+    try {
+      const data = await adminRequest(`/admin/products/${editingProduct.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          ...editForm,
+          expiryDate: editForm.expiryDate || null,
+        }),
+      });
+      setProducts((current) => current.map((item) => item.id === editingProduct.id ? (data.product || { ...item, ...editForm, quantity: editForm.quantity, location: editForm.location, expiryDate: editForm.expiryDate || null }) : item));
+      setEditingProduct(null);
+      setNotice('Product updated successfully.');
+      await loadOverview();
+    } catch (err) {
+      setError(err.message || 'Could not update product.');
+    } finally {
+      setSavingProduct(false);
+    }
+  };
+
+  const deleteProduct = async (product) => {
+    const label = product.name || `Product #${product.id}`;
+    if (!window.confirm(`Permanently delete “${label}” from the inventory? This cannot be undone.`)) return;
+    setBusyId(product.id);
+    setError('');
+    setNotice('');
+    try {
+      await adminRequest(`/admin/products/${product.id}`, { method: 'DELETE' });
+      setProducts((current) => current.filter((item) => item.id !== product.id));
+      setNotice('Product deleted successfully.');
+      await loadOverview();
+      if (products.length === 1 && productPage > 1) setProductPage((page) => page - 1);
+      else await loadProducts();
+    } catch (err) {
+      setError(err.message || 'Could not delete product.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const goBackHome = () => {
+    // Hard navigation guarantees the app returns to the HomeAI root route.
+    window.location.assign('/');
+  };
+
   const cards = useMemo(() => [
     { label: 'Total users', value: stats?.totalUsers, icon: Users, tone: 'mint', note: 'Registered accounts' },
     { label: 'Inventory items', value: stats?.totalProducts, icon: Boxes, tone: 'gold', note: 'Across all accounts' },
@@ -180,7 +247,7 @@ export default function AdminDashboard({ onBack }) {
           <span className="ha-kicker">HOMEAI SECURITY</span>
           <h1>Admin access required</h1>
           <p>This account does not have administrator permission, or its session is no longer valid. Admin access is verified by the server.</p>
-          <button className="ha-primary-button" onClick={onBack}><ArrowLeft size={16} /> Return to HomeAI</button>
+          <button className="ha-primary-button" onClick={goBackHome}><ArrowLeft size={16} /> Return to HomeAI</button>
         </section>
       </main>
     );
@@ -200,7 +267,7 @@ export default function AdminDashboard({ onBack }) {
           <button className={`ha-side-link ${tab === 'products' ? 'active' : ''}`} onClick={() => { setTab('products'); setProductPage(1); }}><Package size={18} /> All products</button>
           <div className="ha-sidebar-bottom">
             <div className="ha-secure-note"><ShieldCheck size={16} /><span>Protected workspace<br /><b>Role verified by API</b></span></div>
-            <button className="ha-back-link" onClick={onBack}><ArrowLeft size={16} /> Back to HomeAI</button>
+            <button className="ha-back-link" onClick={goBackHome}><ArrowLeft size={16} /> Back to HomeAI</button>
           </div>
         </aside>
 
@@ -277,12 +344,31 @@ export default function AdminDashboard({ onBack }) {
                 <div className="ha-panel-heading"><div><span className="ha-kicker">GLOBAL INVENTORY</span><h2>All saved products</h2></div><span className="ha-result-count">{number(productPagination?.total)} products</span></div>
                 <div className="ha-toolbar"><label className="ha-search"><Search size={17} /><input value={productSearch} placeholder="Search product, brand or category…" onChange={(e) => { setProductSearch(e.target.value); setProductPage(1); }} /></label></div>
                 {tableLoading ? <div className="ha-empty">Loading products…</div> : products.length ? (
-                  <div className="ha-table-wrap"><table className="ha-table"><thead><tr><th>PRODUCT</th><th>CATEGORY</th><th>QUANTITY</th><th>LOCATION</th><th>OWNER</th><th>EXPIRY</th></tr></thead><tbody>
-                    {products.map((product) => <tr key={product.id}><td><b>{product.name}</b>{product.brand && <small className="ha-subcell">{product.brand}</small>}</td><td>{product.category || 'Other'}</td><td>{product.quantity || '—'}</td><td>{product.location || '—'}</td><td>{product.user?.name || product.user?.email || 'Unknown'}</td><td>{product.expiryDate ? new Date(product.expiryDate).toLocaleDateString('en-IN') : 'Not set'}</td></tr>)}
+                  <div className="ha-table-wrap"><table className="ha-table"><thead><tr><th>PRODUCT</th><th>CATEGORY</th><th>QUANTITY</th><th>LOCATION</th><th>OWNER</th><th>EXPIRY</th><th>ACTIONS</th></tr></thead><tbody>
+                    {products.map((product) => <tr key={product.id}><td><b>{product.name}</b>{product.brand && <small className="ha-subcell">{product.brand}</small>}</td><td>{product.category || 'Other'}</td><td>{product.quantity || '—'}</td><td>{product.location || '—'}</td><td>{product.user?.name || product.user?.email || 'Unknown'}</td><td>{product.expiryDate ? new Date(product.expiryDate).toLocaleDateString('en-IN') : 'Not set'}</td><td><div className="ha-row-actions"><button className="ha-action-button" disabled={busyId === product.id} onClick={() => openProductEditor(product)} title="Edit product"><Pencil size={14} /> Edit</button><button className="ha-icon-danger" disabled={busyId === product.id} onClick={() => deleteProduct(product)} title="Delete product"><Trash2 size={15} /></button></div></td></tr>)}
                   </tbody></table></div>
                 ) : <div className="ha-empty">No products found.</div>}
                 <div className="ha-pagination"><span>Page {productPagination?.page || 1} of {Math.max(productPagination?.totalPages || 1, 1)}</span><div><button disabled={!productPagination || productPage <= 1} onClick={() => setProductPage((p) => p - 1)}><ChevronLeft size={16} /> Previous</button><button disabled={!productPagination || productPage >= productPagination.totalPages} onClick={() => setProductPage((p) => p + 1)}>Next <ChevronRight size={16} /></button></div></div>
               </section>
+            )}
+
+            {editingProduct && (
+              <div className="ha-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingProduct) setEditingProduct(null); }}>
+                <section className="ha-edit-modal" role="dialog" aria-modal="true" aria-labelledby="ha-edit-title">
+                  <div className="ha-edit-modal-head"><div><span className="ha-kicker">GLOBAL INVENTORY</span><h2 id="ha-edit-title">Edit product</h2><p>Update this saved inventory record.</p></div><button type="button" className="ha-modal-close" onClick={() => setEditingProduct(null)} disabled={savingProduct} aria-label="Close"><X size={18} /></button></div>
+                  <form onSubmit={saveProduct}>
+                    <div className="ha-edit-grid">
+                      <label>Product name<input required value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} /></label>
+                      <label>Brand<input value={editForm.brand} onChange={(e) => setEditForm((f) => ({ ...f, brand: e.target.value }))} /></label>
+                      <label>Category<input value={editForm.category} onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))} /></label>
+                      <label>Quantity<input value={editForm.quantity} onChange={(e) => setEditForm((f) => ({ ...f, quantity: e.target.value }))} /></label>
+                      <label>Location<input value={editForm.location} onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))} /></label>
+                      <label>Expiry date<input type="date" value={editForm.expiryDate} onChange={(e) => setEditForm((f) => ({ ...f, expiryDate: e.target.value }))} /></label>
+                    </div>
+                    <div className="ha-edit-modal-actions"><button type="button" className="ha-cancel-button" onClick={() => setEditingProduct(null)} disabled={savingProduct}>Cancel</button><button type="submit" className="ha-primary-button" disabled={savingProduct}><Save size={15} /> {savingProduct ? 'Saving…' : 'Save changes'}</button></div>
+                  </form>
+                </section>
+              </div>
             )}
 
             <footer className="ha-admin-footer"><span>HomeAI Admin Console</span><span><ShieldCheck size={13} /> Protected by server-side role verification</span></footer>
