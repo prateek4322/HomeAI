@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
-
+import AdminDashboard from './components/AdminDashboard.jsx';
 import {
   getProducts,
   getDashboardSummary,
@@ -20,7 +20,7 @@ import {
   Moon, ChevronDown, ChevronLeft, ChevronRight, ArrowRight,
   Plus, Camera, Clock3, AlertCircle, Grid2X2, MapPin,
   Zap, CheckCircle2, Menu, X, Send,Trash2,AlertTriangle,
-  Sparkles, MoreVertical,
+  Sparkles, MoreVertical, ShieldCheck,
 } from 'lucide-react';
 
 import {
@@ -32,7 +32,6 @@ import {
 } from 'recharts';
 
 import './styles.css';
-import AdminDashboard from './components/AdminDashboard.jsx';
 
 const initialProducts = [
   {
@@ -155,7 +154,7 @@ const getProductDaysLeft = (product) => {
   return Number.isFinite(fallback) ? fallback : null;
 };
 
-function Dashboard() {
+function Dashboard({ isAdmin = false, onOpenAdmin }) {
   const { user, logout } = useAuth();
   const [active, setActive] = useState('Dashboard');
   const [pageView, setPageView] = useState('dashboard');
@@ -1405,6 +1404,19 @@ function Dashboard() {
               <span>{label}</span>
             </button>
           ))}
+          {isAdmin && (
+            <button
+              type="button"
+              className="nav-item admin-nav-item"
+              onClick={() => {
+                setMobileNav(false);
+                onOpenAdmin?.();
+              }}
+            >
+              <ShieldCheck size={19} />
+              <span>Admin Console</span>
+            </button>
+          )}
         </nav>
 
       </aside>
@@ -3653,6 +3665,8 @@ function Calendar({ month, products = [] }) {
 function App() {
   const { isAuthenticated, loading } = useAuth();
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminCheckLoading, setAdminCheckLoading] = useState(true);
 
   useEffect(() => {
     const handleLocationChange = () => setCurrentPath(window.location.pathname);
@@ -3660,15 +3674,49 @@ function App() {
     return () => window.removeEventListener('popstate', handleLocationChange);
   }, []);
 
-  const openAdminPanel = () => {
-    window.history.pushState({}, '', '/admin');
-    setCurrentPath('/admin');
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!isAuthenticated) {
+      setIsAdmin(false);
+      setAdminCheckLoading(false);
+      return undefined;
+    }
+
+    const verifyAdmin = async () => {
+      setAdminCheckLoading(true);
+      try {
+        const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/$/, '');
+        const token = localStorage.getItem('homeai_token');
+        if (!token) {
+          if (!cancelled) setIsAdmin(false);
+          return;
+        }
+
+        const response = await fetch(`${apiBase}/admin/access`, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!cancelled) setIsAdmin(response.ok);
+      } catch (error) {
+        console.error('Admin access verification failed:', error);
+        if (!cancelled) setIsAdmin(false);
+      } finally {
+        if (!cancelled) setAdminCheckLoading(false);
+      }
+    };
+
+    verifyAdmin();
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
+
+  const navigateTo = (path) => {
+    window.history.pushState({}, '', path);
+    setCurrentPath(path);
   };
 
-  const closeAdminPanel = () => {
-    window.history.pushState({}, '', '/');
-    setCurrentPath('/');
-  };
+  const normalizedPath = currentPath.replace(/\/+$/, '') || '/';
 
   if (loading) {
     return (
@@ -3678,15 +3726,27 @@ function App() {
     );
   }
 
-  if (!isAuthenticated) {
-    return <AuthPage />;
+  if (!isAuthenticated) return <AuthPage />;
+
+  if (normalizedPath === '/admin' && adminCheckLoading) {
+    return <Dashboard />;
   }
 
-  if (currentPath.replace(/\/+$/, '') === '/admin') {
-    return <AdminDashboard onBack={closeAdminPanel} />;
+  if (normalizedPath === '/admin' && isAdmin) {
+    return <AdminDashboard onBack={() => navigateTo('/')} />;
   }
 
-  return <Dashboard onOpenAdmin={openAdminPanel} />;
+  if (normalizedPath === '/admin' && !isAdmin) {
+    window.history.replaceState({}, '', '/');
+    if (currentPath !== '/') setCurrentPath('/');
+  }
+
+  return (
+    <Dashboard
+      isAdmin={isAdmin}
+      onOpenAdmin={() => navigateTo('/admin')}
+    />
+  );
 }
 
 export default App;

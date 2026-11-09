@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, ShieldCheck, LayoutDashboard, Users, Package, Search,
   RefreshCw, Shield, UserRound, Trash2, ChevronLeft, ChevronRight,
-  AlertTriangle, CheckCircle2, Clock3, Boxes, X, Crown,
+  AlertTriangle, CheckCircle2, Clock3, Boxes, X, Crown, Pencil, Save,
 } from 'lucide-react';
 import './admin-dashboard.css';
 
@@ -54,7 +54,13 @@ export default function AdminDashboard({ onBack }) {
   const [notice, setNotice] = useState('');
   const [accessDenied, setAccessDenied] = useState(false);
   const [busyId, setBusyId] = useState(null);
-  const [pendingConfirm, setPendingConfirm] = useState(null);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', brand: '', category: 'Food', quantity: '', location: 'Kitchen', expiryDate: '' });
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState(null);
+  const [deletePhrase, setDeletePhrase] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadOverview = useCallback(async () => {
     const data = await adminRequest('/admin/dashboard');
@@ -86,6 +92,7 @@ export default function AdminDashboard({ onBack }) {
 
   const refreshAll = useCallback(async () => {
     setLoading(true);
+    setRefreshing(true);
     setError('');
     setAccessDenied(false);
     try {
@@ -95,6 +102,7 @@ export default function AdminDashboard({ onBack }) {
       setError(err.message || 'Could not load admin dashboard.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [loadOverview]);
 
@@ -122,16 +130,10 @@ export default function AdminDashboard({ onBack }) {
 
   const changeRole = async (target) => {
     const nextRole = target.role === 'ADMIN' ? 'USER' : 'ADMIN';
-    setPendingConfirm({
-      type: 'role', target, nextRole,
-      title: nextRole === 'ADMIN' ? 'Grant administrator access?' : 'Remove administrator access?',
-      description: nextRole === 'ADMIN'
-        ? `You are about to give ${target.email} full administrator privileges. They will be able to manage users and inventory.`
-        : `You are about to remove administrator privileges from ${target.email}. Their account will remain active as a standard user.`,
-      confirmLabel: nextRole === 'ADMIN' ? 'Grant access' : 'Remove access',
-      danger: nextRole !== 'ADMIN',
-    });
-    return;
+    const message = nextRole === 'ADMIN'
+      ? `Give ADMIN access to ${target.email}?`
+      : `Remove ADMIN access from ${target.email}?`;
+    if (!window.confirm(message)) return;
 
     setBusyId(target.id);
     setError('');
@@ -151,52 +153,88 @@ export default function AdminDashboard({ onBack }) {
     }
   };
 
-  const deleteUser = async (target) => {
-    setPendingConfirm({
-      type: 'delete', target, title: 'Delete this account?',
-      description: `This will permanently delete ${target.name || target.email} and all products saved under this account. This action cannot be undone.`,
-      confirmLabel: 'Delete account', danger: true,
-    });
-    return;
+  const deleteUser = (target) => {
+    setDeletePhrase('');
+    setDeleteDialog({ type: 'user', target });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteDialog || deletePhrase.trim() !== 'DELETE') return;
+    const { type, target } = deleteDialog;
+    setDeleting(true);
     setBusyId(target.id);
     setError('');
     setNotice('');
     try {
-      await adminRequest(`/admin/users/${target.id}`, { method: 'DELETE' });
-      setNotice('User and associated products deleted.');
-      await loadUsers();
+      if (type === 'user') {
+        await adminRequest(`/admin/users/${target.id}`, { method: 'DELETE' });
+        setNotice('User account and associated products deleted.');
+        await loadUsers();
+      } else {
+        await adminRequest(`/admin/products/${target.id}`, { method: 'DELETE' });
+        setProducts((current) => current.filter((item) => item.id !== target.id));
+        setNotice('Product deleted successfully.');
+        if (products.length === 1 && productPage > 1) setProductPage((page) => page - 1);
+        else await loadProducts();
+      }
       await loadOverview();
+      setDeleteDialog(null);
+      setDeletePhrase('');
     } catch (err) {
-      setError(err.message || 'Could not delete user.');
+      setError(err.message || `Could not delete ${type}.`);
     } finally {
+      setDeleting(false);
       setBusyId(null);
     }
   };
 
-  const executePendingConfirm = async () => {
-    const action = pendingConfirm;
-    if (!action) return;
-    setPendingConfirm(null);
-    setBusyId(action.target.id);
+  const openProductEditor = (product) => {
+    setEditingProduct(product);
+    setEditForm({
+      name: product.name || '',
+      brand: product.brand || '',
+      category: product.category || 'Food',
+      quantity: product.quantity || '',
+      location: product.location || 'Kitchen',
+      expiryDate: product.expiryDate ? new Date(product.expiryDate).toISOString().slice(0, 10) : '',
+    });
+    setError('');
+    setNotice('');
+  };
+
+  const saveProduct = async (event) => {
+    event.preventDefault();
+    if (!editingProduct || !editForm.name.trim()) return;
+    setSavingProduct(true);
     setError('');
     setNotice('');
     try {
-      if (action.type === 'role') {
-        await adminRequest(`/admin/users/${action.target.id}/role`, {
-          method: 'PATCH', body: JSON.stringify({ role: action.nextRole }),
-        });
-        setNotice(`Role updated to ${action.nextRole}.`);
-      } else {
-        await adminRequest(`/admin/users/${action.target.id}`, { method: 'DELETE' });
-        setNotice('User and associated products deleted.');
-      }
-      await loadUsers();
+      const data = await adminRequest(`/admin/products/${editingProduct.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          ...editForm,
+          expiryDate: editForm.expiryDate || null,
+        }),
+      });
+      setProducts((current) => current.map((item) => item.id === editingProduct.id ? (data.product || { ...item, ...editForm, quantity: editForm.quantity, location: editForm.location, expiryDate: editForm.expiryDate || null }) : item));
+      setEditingProduct(null);
+      setNotice('Product updated successfully.');
       await loadOverview();
     } catch (err) {
-      setError(err.message || 'The requested action could not be completed.');
+      setError(err.message || 'Could not update product.');
     } finally {
-      setBusyId(null);
+      setSavingProduct(false);
     }
+  };
+
+  const deleteProduct = (product) => {
+    setDeletePhrase('');
+    setDeleteDialog({ type: 'product', target: product });
+  };
+
+  const goBackHome = () => {
+    // Hard navigation guarantees the app returns to the HomeAI root route.
+    window.location.assign('/');
   };
 
   const cards = useMemo(() => [
@@ -218,7 +256,7 @@ export default function AdminDashboard({ onBack }) {
           <span className="ha-kicker">HOMEAI SECURITY</span>
           <h1>Admin access required</h1>
           <p>This account does not have administrator permission, or its session is no longer valid. Admin access is verified by the server.</p>
-          <button className="ha-primary-button" onClick={onBack}><ArrowLeft size={16} /> Return to HomeAI</button>
+          <button className="ha-primary-button" onClick={goBackHome}><ArrowLeft size={16} /> Return to HomeAI</button>
         </section>
       </main>
     );
@@ -238,7 +276,7 @@ export default function AdminDashboard({ onBack }) {
           <button className={`ha-side-link ${tab === 'products' ? 'active' : ''}`} onClick={() => { setTab('products'); setProductPage(1); }}><Package size={18} /> All products</button>
           <div className="ha-sidebar-bottom">
             <div className="ha-secure-note"><ShieldCheck size={16} /><span>Protected workspace<br /><b>Role verified by API</b></span></div>
-            <button className="ha-back-link" onClick={onBack}><ArrowLeft size={16} /> Back to HomeAI</button>
+            <button className="ha-back-link" onClick={goBackHome}><ArrowLeft size={16} /> Back to HomeAI</button>
           </div>
         </aside>
 
@@ -248,7 +286,7 @@ export default function AdminDashboard({ onBack }) {
             <div className="ha-breadcrumb">HomeAI <span>/</span> <b>Admin Console</b></div>
             <div className="ha-top-actions">
               <span className="ha-live-pill"><i /> SECURE SESSION</span>
-              <button className="ha-refresh-button" onClick={refreshAll} title="Refresh dashboard"><RefreshCw size={16} /> Refresh</button>
+              <button className="ha-refresh-button" onClick={refreshAll} title="Refresh dashboard" disabled={refreshing}><RefreshCw className={refreshing ? 'ha-spin-icon' : ''} size={16} /> {refreshing ? 'Refreshing…' : 'Refresh'}</button>
             </div>
           </header>
 
@@ -292,7 +330,7 @@ export default function AdminDashboard({ onBack }) {
               <section className="ha-panel">
                 <div className="ha-panel-heading"><div><span className="ha-kicker">ACCOUNT DIRECTORY</span><h2>All registered users</h2></div><span className="ha-result-count">{number(userPagination?.total)} accounts</span></div>
                 <div className="ha-toolbar"><label className="ha-search"><Search size={17} /><input value={userSearch} placeholder="Search name or email…" onChange={(e) => { setUserSearch(e.target.value); setUserPage(1); }} /></label></div>
-                {tableLoading ? <div className="ha-empty">Loading users…</div> : users.length ? (
+                {tableLoading ? <div className="ha-table-loading"><span className="ha-spinner ha-spinner-large" /><strong>Loading user directory</strong><small>Fetching account records securely…</small></div> : users.length ? (
                   <div className="ha-table-wrap"><table className="ha-table"><thead><tr><th>USER</th><th>EMAIL</th><th>PRODUCTS</th><th>ROLE</th><th>JOINED</th><th>ACTIONS</th></tr></thead><tbody>
                     {users.map((person) => <tr key={person.id}>
                       <td><div className="ha-user-cell"><span className="ha-avatar">{(person.name || person.email || 'U').charAt(0).toUpperCase()}</span><b>{person.name || 'Unnamed user'}</b></div></td>
@@ -314,38 +352,94 @@ export default function AdminDashboard({ onBack }) {
               <section className="ha-panel">
                 <div className="ha-panel-heading"><div><span className="ha-kicker">GLOBAL INVENTORY</span><h2>All saved products</h2></div><span className="ha-result-count">{number(productPagination?.total)} products</span></div>
                 <div className="ha-toolbar"><label className="ha-search"><Search size={17} /><input value={productSearch} placeholder="Search product, brand or category…" onChange={(e) => { setProductSearch(e.target.value); setProductPage(1); }} /></label></div>
-                {tableLoading ? <div className="ha-empty">Loading products…</div> : products.length ? (
-                  <div className="ha-table-wrap"><table className="ha-table"><thead><tr><th>PRODUCT</th><th>CATEGORY</th><th>QUANTITY</th><th>LOCATION</th><th>OWNER</th><th>EXPIRY</th></tr></thead><tbody>
-                    {products.map((product) => <tr key={product.id}><td><b>{product.name}</b>{product.brand && <small className="ha-subcell">{product.brand}</small>}</td><td>{product.category || 'Other'}</td><td>{product.quantity || '—'}</td><td>{product.location || '—'}</td><td>{product.user?.name || product.user?.email || 'Unknown'}</td><td>{product.expiryDate ? new Date(product.expiryDate).toLocaleDateString('en-IN') : 'Not set'}</td></tr>)}
+                {tableLoading ? <div className="ha-table-loading"><span className="ha-spinner ha-spinner-large" /><strong>Loading inventory</strong><small>Fetching product records…</small></div> : products.length ? (
+                  <div className="ha-table-wrap"><table className="ha-table"><thead><tr><th>PRODUCT</th><th>CATEGORY</th><th>QUANTITY</th><th>LOCATION</th><th>OWNER</th><th>EXPIRY</th><th>ACTIONS</th></tr></thead><tbody>
+                    {products.map((product) => <tr key={product.id}><td><b>{product.name}</b>{product.brand && <small className="ha-subcell">{product.brand}</small>}</td><td>{product.category || 'Other'}</td><td>{product.quantity || '—'}</td><td>{product.location || '—'}</td><td>{product.user?.name || product.user?.email || 'Unknown'}</td><td>{product.expiryDate ? new Date(product.expiryDate).toLocaleDateString('en-IN') : 'Not set'}</td><td><div className="ha-row-actions"><button className="ha-action-button" disabled={busyId === product.id} onClick={() => openProductEditor(product)} title="Edit product"><Pencil size={14} /> Edit</button><button className="ha-icon-danger" disabled={busyId === product.id} onClick={() => deleteProduct(product)} title="Delete product"><Trash2 size={15} /></button></div></td></tr>)}
                   </tbody></table></div>
                 ) : <div className="ha-empty">No products found.</div>}
                 <div className="ha-pagination"><span>Page {productPagination?.page || 1} of {Math.max(productPagination?.totalPages || 1, 1)}</span><div><button disabled={!productPagination || productPage <= 1} onClick={() => setProductPage((p) => p - 1)}><ChevronLeft size={16} /> Previous</button><button disabled={!productPagination || productPage >= productPagination.totalPages} onClick={() => setProductPage((p) => p + 1)}>Next <ChevronRight size={16} /></button></div></div>
               </section>
             )}
 
+            {deleteDialog && (
+              <div
+                className="ha-modal-backdrop ha-danger-backdrop"
+                role="presentation"
+                onMouseDown={(event) => {
+                  if (event.target === event.currentTarget && !deleting) {
+                    setDeleteDialog(null);
+                    setDeletePhrase('');
+                  }
+                }}
+              >
+                <section className="ha-delete-modal" role="dialog" aria-modal="true" aria-labelledby="ha-delete-title">
+                  <button
+                    type="button"
+                    className="ha-modal-close ha-delete-close"
+                    onClick={() => { if (!deleting) { setDeleteDialog(null); setDeletePhrase(''); } }}
+                    disabled={deleting}
+                    aria-label="Close delete confirmation"
+                  ><X size={18} /></button>
+                  <div className="ha-delete-symbol"><Trash2 size={25} /></div>
+                  <span className="ha-kicker ha-danger-kicker">IRREVERSIBLE ACTION</span>
+                  <h2 id="ha-delete-title">{deleteDialog.type === 'user' ? 'Delete this account?' : 'Delete this product?'}</h2>
+                  <p className="ha-delete-description">
+                    {deleteDialog.type === 'user'
+                      ? <>You are about to permanently remove <strong>{deleteDialog.target.name || deleteDialog.target.email}</strong> and all inventory linked to this account.</>
+                      : <>You are about to permanently remove <strong>{deleteDialog.target.name || `Product #${deleteDialog.target.id}`}</strong> from the global inventory.</>}
+                  </p>
+                  {deleteDialog.type === 'user' && (
+                    <div className="ha-delete-impact">
+                      <div><span>Account</span><strong>{deleteDialog.target.email}</strong></div>
+                      <div><span>Linked products</span><strong>{number(deleteDialog.target.productCount)}</strong></div>
+                      <div><span>Access role</span><strong>{deleteDialog.target.role}</strong></div>
+                    </div>
+                  )}
+                  <div className="ha-delete-warning"><AlertTriangle size={17} /><span>This action cannot be undone. The deleted data cannot be recovered.</span></div>
+                  <label className="ha-delete-confirm-label">Type <b>DELETE</b> to confirm
+                    <input
+                      autoFocus
+                      value={deletePhrase}
+                      onChange={(event) => setDeletePhrase(event.target.value)}
+                      placeholder="Type DELETE here"
+                      disabled={deleting}
+                      autoComplete="off"
+                      spellCheck="false"
+                    />
+                  </label>
+                  <div className="ha-delete-actions">
+                    <button type="button" className="ha-cancel-button" onClick={() => { setDeleteDialog(null); setDeletePhrase(''); }} disabled={deleting}>{deleteDialog.type === 'user' ? 'Keep account' : 'Keep product'}</button>
+                    <button type="button" className="ha-confirm-delete" onClick={confirmDelete} disabled={deleting || deletePhrase.trim() !== 'DELETE'}>
+                      {deleting ? <><span className="ha-button-spinner" /> Deleting…</> : <><Trash2 size={15} /> Delete permanently</>}
+                    </button>
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {editingProduct && (
+              <div className="ha-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingProduct) setEditingProduct(null); }}>
+                <section className="ha-edit-modal" role="dialog" aria-modal="true" aria-labelledby="ha-edit-title">
+                  <div className="ha-edit-modal-head"><div><span className="ha-kicker">GLOBAL INVENTORY</span><h2 id="ha-edit-title">Edit product</h2><p>Update this saved inventory record.</p></div><button type="button" className="ha-modal-close" onClick={() => setEditingProduct(null)} disabled={savingProduct} aria-label="Close"><X size={18} /></button></div>
+                  <form onSubmit={saveProduct}>
+                    <div className="ha-edit-grid">
+                      <label>Product name<input required value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} /></label>
+                      <label>Brand<input value={editForm.brand} onChange={(e) => setEditForm((f) => ({ ...f, brand: e.target.value }))} /></label>
+                      <label>Category<input value={editForm.category} onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))} /></label>
+                      <label>Quantity<input value={editForm.quantity} onChange={(e) => setEditForm((f) => ({ ...f, quantity: e.target.value }))} /></label>
+                      <label>Location<input value={editForm.location} onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))} /></label>
+                      <label>Expiry date<input type="date" value={editForm.expiryDate} onChange={(e) => setEditForm((f) => ({ ...f, expiryDate: e.target.value }))} /></label>
+                    </div>
+                    <div className="ha-edit-modal-actions"><button type="button" className="ha-cancel-button" onClick={() => setEditingProduct(null)} disabled={savingProduct}>Cancel</button><button type="submit" className="ha-primary-button" disabled={savingProduct}><Save size={15} /> {savingProduct ? 'Saving…' : 'Save changes'}</button></div>
+                  </form>
+                </section>
+              </div>
+            )}
+
             <footer className="ha-admin-footer"><span>HomeAI Admin Console</span><span><ShieldCheck size={13} /> Protected by server-side role verification</span></footer>
           </div>
         </section>
       </div>
-
-      {pendingConfirm && (
-        <div className="ha-confirm-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPendingConfirm(null); }}>
-          <section className="ha-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="ha-confirm-title">
-            <button className="ha-confirm-close" onClick={() => setPendingConfirm(null)} aria-label="Close confirmation"><X size={18} /></button>
-            <div className={`ha-confirm-icon ${pendingConfirm.danger ? 'danger' : 'secure'}`}>
-              {pendingConfirm.type === 'delete' || pendingConfirm.danger ? <AlertTriangle size={23} /> : <ShieldCheck size={23} />}
-            </div>
-            <span className="ha-kicker">SECURITY CONFIRMATION</span>
-            <h2 id="ha-confirm-title">{pendingConfirm.title}</h2>
-            <p>{pendingConfirm.description}</p>
-            <div className="ha-confirm-meta"><ShieldCheck size={15} /><span>Changes are applied securely and recorded by HomeAI.</span></div>
-            <div className="ha-confirm-actions">
-              <button className="ha-confirm-cancel" onClick={() => setPendingConfirm(null)}>Cancel</button>
-              <button className={`ha-confirm-submit ${pendingConfirm.danger ? 'danger' : ''}`} onClick={executePendingConfirm}>{pendingConfirm.confirmLabel}</button>
-            </div>
-          </section>
-        </div>
-      )}
     </main>
   );
 }
