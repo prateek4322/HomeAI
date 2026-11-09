@@ -7,6 +7,9 @@ import {
 
 const router = express.Router();
 router.use(protect, adminOnly);
+router.get("/access", (req, res) => {
+  return res.json({ isAdmin: true });
+});
 router.get("/dashboard", getAdminDashboard);
 router.get("/users", getAdminUsers);
 router.patch("/users/:id/role", updateUserRole);
